@@ -1,32 +1,36 @@
 <?php
 
-namespace Artryazanov\GogScanner\Tests;
+namespace Artryazanov\GamesAggregator\Tests;
 
-use Artryazanov\GogScanner\GamesAggregatorServiceProvider;
+use Artryazanov\GamesAggregator\GamesAggregatorServiceProvider;
+use Artryazanov\GogScanner\GogScannerServiceProvider;
+use Artryazanov\LaravelSteamAppsDb\LaravelSteamAppsDbServiceProvider;
+use Artryazanov\WikipediaGamesDb\WikipediaGamesDbServiceProvider;
 use Orchestra\Testbench\TestCase as BaseTestCase;
+
 abstract class TestCase extends BaseTestCase
 {
     protected function getPackageProviders($app)
     {
-        return [GamesAggregatorServiceProvider::class];
+        return [
+            GamesAggregatorServiceProvider::class,
+            GogScannerServiceProvider::class,
+            LaravelSteamAppsDbServiceProvider::class,
+            WikipediaGamesDbServiceProvider::class,
+        ];
     }
 
-    protected function getEnvironmentSetUp($app): void
+    protected function defineEnvironment($app)
     {
-        $app['config']->set('app.key', 'base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=');
         $app['config']->set('database.default', 'testing');
         $app['config']->set('database.connections.testing', [
             'driver' => 'sqlite',
             'database' => ':memory:',
             'prefix' => '',
+            'foreign_key_constraints' => true,
         ]);
-    }
-
-    /**
-     * Define database migrations.
-     */
-    protected function defineDatabaseMigrations(): void
-    {
-        $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
+        $app['config']->set('queue.default', 'sync');
+        $app['config']->set('app.key', 'base64:'.base64_encode(random_bytes(32)));
     }
 }
+

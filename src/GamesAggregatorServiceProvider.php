@@ -25,7 +25,7 @@ class GamesAggregatorServiceProvider extends ServiceProvider
         // Register console commands
         if ($this->app->runningInConsole()) {
             $this->commands([
-                //???
+                \Artryazanov\GamesAggregator\Console\AggregateGamesCommand::class,
             ]);
         }
     }
