@@ -2,7 +2,6 @@
 
 namespace Artryazanov\GamesAggregator\Jobs;
 
-use Artryazanov\GamesAggregator\Models\GaGame;
 use Artryazanov\GamesAggregator\Services\AggregationService;
 use Artryazanov\GogScanner\Models\Game as GogGame;
 use Illuminate\Bus\Queueable;
@@ -23,9 +22,7 @@ class AggregateGogGamesJob implements ShouldQueue
 
     public int $backoff = 30;
 
-    public function __construct(public int $chunkSize = 500)
-    {
-    }
+    public function __construct(public int $chunkSize = 500) {}
 
     public function handle(AggregationService $service): void
     {
@@ -34,7 +31,7 @@ class AggregateGogGamesJob implements ShouldQueue
             ->whereNotNull('title')
             ->where(function ($q) {
                 $q->whereHas('developers')
-                  ->whereHas('publishers');
+                    ->whereHas('publishers');
             })
             ->orderBy('id')
             ->chunkById($this->chunkSize, function ($games) use ($service) {
@@ -100,6 +97,7 @@ class AggregateGogGamesJob implements ShouldQueue
                 return (int) gmdate('Y', $ts);
             }
         }
+
         return null;
     }
 }

@@ -22,9 +22,7 @@ class AggregateSteamAppsJob implements ShouldQueue
 
     public int $backoff = 30;
 
-    public function __construct(public int $chunkSize = 500)
-    {
-    }
+    public function __construct(public int $chunkSize = 500) {}
 
     public function handle(AggregationService $service): void
     {
