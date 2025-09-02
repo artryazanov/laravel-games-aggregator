@@ -18,9 +18,7 @@ class AggregateWikipediaGamesJob implements ShouldQueue
 
     public int $timeout = 180;
 
-    public function __construct(public int $chunkSize = 100)
-    {
-    }
+    public function __construct(public int $chunkSize = 100) {}
 
     public function handle(AggregationService $service): void
     {
@@ -30,7 +28,7 @@ class AggregateWikipediaGamesJob implements ShouldQueue
             ->where(function ($q) {
                 // Release year or release_date is required (release_year may be null, but release_date could be set)
                 $q->whereNotNull('release_year')
-                  ->orWhereNotNull('release_date');
+                    ->orWhereNotNull('release_date');
             })
             ->whereHas('developers')
             ->whereHas('publishers')

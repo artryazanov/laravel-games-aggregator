@@ -10,6 +10,7 @@ use Illuminate\Console\Command;
 class AggregateGamesCommand extends Command
 {
     protected $signature = 'ga:aggregate {--source=* : Sources to aggregate: gog,steam,wikipedia} {--chunk=100 : Chunk size per job} {--dry-run : Simulate without DB writes} {--limit=200 : Max items to scan per source in dry-run}';
+
     protected $description = 'Aggregate base game data into ga_ tables using queues and jobs.';
 
     public function handle(): int
@@ -48,6 +49,7 @@ class AggregateGamesCommand extends Command
         }
 
         $this->info('Aggregation jobs dispatched.');
+
         return self::SUCCESS;
     }
 
@@ -101,19 +103,32 @@ class AggregateGamesCommand extends Command
             } else {
                 foreach (['release_date_ts', 'global_release_date_ts'] as $tsField) {
                     $ts = (int) ($g->{$tsField} ?? 0);
-                    if ($ts > 0) { $year = (int) gmdate('Y', $ts); break; }
+                    if ($ts > 0) {
+                        $year = (int) gmdate('Y', $ts);
+                        break;
+                    }
                 }
             }
-            if ($name === '' || $year === null) continue;
+            if ($name === '' || $year === null) {
+                continue;
+            }
 
             $devs = $g->developers()->pluck('name')->all();
             $pubs = $g->publishers()->pluck('name')->all();
-            if (empty($devs) || empty($pubs)) continue;
+            if (empty($devs) || empty($pubs)) {
+                continue;
+            }
 
             $summary['total']++;
             $sim = $service->simulateDecision($name, $year, $devs, $pubs);
-            if ($sim['matched_game_id']) $summary['would_link_existing']++; else $summary['would_create_games']++;
-            foreach ($sim['missing_companies'] as $n) { $summary['missing_companies'][$n] = true; }
+            if ($sim['matched_game_id']) {
+                $summary['would_link_existing']++;
+            } else {
+                $summary['would_create_games']++;
+            }
+            foreach ($sim['missing_companies'] as $n) {
+                $summary['missing_companies'][$n] = true;
+            }
         }
 
         $this->table(['metric', 'value'], [
@@ -130,7 +145,7 @@ class AggregateGamesCommand extends Command
         $service = app(\Artryazanov\GamesAggregator\Services\AggregationService::class);
         $q = \Artryazanov\LaravelSteamAppsDb\Models\SteamApp::query()
             ->whereRaw('NOT EXISTS (SELECT 1 FROM ga_steam_app_links l WHERE l.steam_app_id = steam_apps.id)')
-            ->whereHas('detail', fn($q) => $q->whereNotNull('release_date'))
+            ->whereHas('detail', fn ($q) => $q->whereNotNull('release_date'))
             ->whereHas('developers')
             ->whereHas('publishers')
             ->orderBy('id')
@@ -147,16 +162,26 @@ class AggregateGamesCommand extends Command
             $name = trim((string) $app->name);
             $year = $app->detail?->release_date?->format('Y');
             $year = $year ? (int) $year : null;
-            if ($name === '' || $year === null) continue;
+            if ($name === '' || $year === null) {
+                continue;
+            }
 
             $devs = $app->developers()->pluck('name')->all();
             $pubs = $app->publishers()->pluck('name')->all();
-            if (empty($devs) || empty($pubs)) continue;
+            if (empty($devs) || empty($pubs)) {
+                continue;
+            }
 
             $summary['total']++;
             $sim = $service->simulateDecision($name, $year, $devs, $pubs);
-            if ($sim['matched_game_id']) $summary['would_link_existing']++; else $summary['would_create_games']++;
-            foreach ($sim['missing_companies'] as $n) { $summary['missing_companies'][$n] = true; }
+            if ($sim['matched_game_id']) {
+                $summary['would_link_existing']++;
+            } else {
+                $summary['would_create_games']++;
+            }
+            foreach ($sim['missing_companies'] as $n) {
+                $summary['missing_companies'][$n] = true;
+            }
         }
 
         $this->table(['metric', 'value'], [
@@ -173,7 +198,7 @@ class AggregateGamesCommand extends Command
         $service = app(\Artryazanov\GamesAggregator\Services\AggregationService::class);
         $q = \Artryazanov\WikipediaGamesDb\Models\Game::query()
             ->whereRaw('NOT EXISTS (SELECT 1 FROM ga_wikipedia_game_links l WHERE l.wikipedia_game_id = wikipedia_games.id)')
-            ->where(fn($q) => $q->whereNotNull('release_year')->orWhereNotNull('release_date'))
+            ->where(fn ($q) => $q->whereNotNull('release_year')->orWhereNotNull('release_date'))
             ->whereHas('developers')
             ->whereHas('publishers')
             ->orderBy('id')
@@ -189,16 +214,26 @@ class AggregateGamesCommand extends Command
         foreach ($q->cursor() as $wg) {
             $name = trim((string) ($wg->wikipage?->title ?? ''));
             $year = $wg->release_year ?? ($wg->release_date ? (int) $wg->release_date->format('Y') : null);
-            if ($name === '' || $year === null) continue;
+            if ($name === '' || $year === null) {
+                continue;
+            }
 
             $devs = $wg->developers()->pluck('name')->all();
             $pubs = $wg->publishers()->pluck('name')->all();
-            if (empty($devs) || empty($pubs)) continue;
+            if (empty($devs) || empty($pubs)) {
+                continue;
+            }
 
             $summary['total']++;
             $sim = $service->simulateDecision($name, (int) $year, $devs, $pubs);
-            if ($sim['matched_game_id']) $summary['would_link_existing']++; else $summary['would_create_games']++;
-            foreach ($sim['missing_companies'] as $n) { $summary['missing_companies'][$n] = true; }
+            if ($sim['matched_game_id']) {
+                $summary['would_link_existing']++;
+            } else {
+                $summary['would_create_games']++;
+            }
+            foreach ($sim['missing_companies'] as $n) {
+                $summary['missing_companies'][$n] = true;
+            }
         }
 
         $this->table(['metric', 'value'], [

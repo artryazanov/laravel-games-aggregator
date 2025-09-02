@@ -18,9 +18,7 @@ class AggregateSteamAppsJob implements ShouldQueue
 
     public int $timeout = 180;
 
-    public function __construct(public int $chunkSize = 100)
-    {
-    }
+    public function __construct(public int $chunkSize = 100) {}
 
     public function handle(AggregationService $service): void
     {

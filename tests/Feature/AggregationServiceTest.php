@@ -52,4 +52,3 @@ class AggregationServiceTest extends TestCase
         $this->assertDatabaseHas('ga_games', ['id' => $existing->id, 'name' => 'Doom']);
     }
 }
-
