@@ -61,6 +61,13 @@ class AggregateWikipediaGamesJob implements ShouldQueue
                             $gaGame->categories()->syncWithoutDetaching($gaCatIds);
                         }
 
+                        // Genres: Wikipedia genres names
+                        $genreNames = $wg->genres()->pluck('name')->all();
+                        if (! empty($genreNames)) {
+                            $gaGenreIds = $service->ensureGenres($genreNames);
+                            $gaGame->genres()->syncWithoutDetaching($gaGenreIds);
+                        }
+
                         try {
                             DB::table('ga_wikipedia_game_links')->insert([
                                 'ga_game_id' => $gaGame->id,

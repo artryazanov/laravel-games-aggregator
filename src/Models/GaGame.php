@@ -32,4 +32,9 @@ class GaGame extends Model
     {
         return $this->belongsToMany(GaCategory::class, 'ga_game_categories', 'ga_game_id', 'ga_category_id');
     }
+
+    public function genres(): BelongsToMany
+    {
+        return $this->belongsToMany(GaGenre::class, 'ga_game_genres', 'ga_game_id', 'ga_genre_id');
+    }
 }

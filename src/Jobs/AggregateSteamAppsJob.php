@@ -59,6 +59,13 @@ class AggregateSteamAppsJob implements ShouldQueue
                             $gaGame->categories()->syncWithoutDetaching($gaCatIds);
                         }
 
+                        // Genres: Steam genres descriptions
+                        $genreNames = $app->genres()->pluck('description')->all();
+                        if (! empty($genreNames)) {
+                            $gaGenreIds = $service->ensureGenres($genreNames);
+                            $gaGame->genres()->syncWithoutDetaching($gaGenreIds);
+                        }
+
                         try {
                             DB::table('ga_steam_app_links')->insert([
                                 'ga_game_id' => $gaGame->id,

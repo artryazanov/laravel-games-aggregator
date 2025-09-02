@@ -63,6 +63,13 @@ class AggregateGogGamesJob implements ShouldQueue
                             $gaGame->categories()->syncWithoutDetaching($gaCatIds);
                         }
 
+                        // Genres from GOG pivot
+                        $genreNames = $g->genres()->pluck('name')->all();
+                        if (! empty($genreNames)) {
+                            $gaGenreIds = $service->ensureGenres($genreNames);
+                            $gaGame->genres()->syncWithoutDetaching($gaGenreIds);
+                        }
+
                         // Link to source if not linked
                         try {
                             DB::table('ga_gog_game_links')->insert([

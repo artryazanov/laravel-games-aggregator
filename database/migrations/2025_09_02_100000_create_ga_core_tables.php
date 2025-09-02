@@ -28,6 +28,13 @@ return new class extends Migration
             $t->timestamps();
         });
 
+        // Genres dictionary (unified across sources)
+        Schema::create('ga_genres', function (Blueprint $t) {
+            $t->id();
+            $t->string('name')->unique();
+            $t->timestamps();
+        });
+
         // Developers pivot
         Schema::create('ga_game_developers', function (Blueprint $t) {
             $t->unsignedBigInteger('ga_game_id');
@@ -53,6 +60,15 @@ return new class extends Migration
             $t->foreign('ga_game_id')->references('id')->on('ga_games')->cascadeOnDelete();
             $t->foreign('ga_category_id')->references('id')->on('ga_categories')->cascadeOnDelete();
             $t->unique(['ga_game_id', 'ga_category_id']);
+        });
+
+        // Game <-> Genre pivot
+        Schema::create('ga_game_genres', function (Blueprint $t) {
+            $t->unsignedBigInteger('ga_game_id');
+            $t->unsignedBigInteger('ga_genre_id');
+            $t->foreign('ga_game_id')->references('id')->on('ga_games')->cascadeOnDelete();
+            $t->foreign('ga_genre_id')->references('id')->on('ga_genres')->cascadeOnDelete();
+            $t->unique(['ga_game_id', 'ga_genre_id']);
         });
 
         // Link tables to source packages
@@ -93,6 +109,8 @@ return new class extends Migration
         Schema::dropIfExists('ga_game_categories');
         Schema::dropIfExists('ga_game_developers');
         Schema::dropIfExists('ga_companies');
+        Schema::dropIfExists('ga_game_genres');
+        Schema::dropIfExists('ga_genres');
         Schema::dropIfExists('ga_categories');
         Schema::dropIfExists('ga_games');
     }
