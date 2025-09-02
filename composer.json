@@ -1,0 +1,55 @@
+{
+  "name": "artryazanov/laravel-games-aggregator",
+  "description": "Laravel package to aggregate games from Steam, GOG, Wikipedia, etc.",
+  "type": "library",
+  "license": "Unlicense",
+  "authors": [
+    { "name": "Artem Ryazanov", "email": "artryazanov@gmail.com" }
+  ],
+  "repositories": [
+      {
+          "type": "path",
+          "url": "packages/artryazanov/laravel-steam-apps-db"
+      },
+      {
+          "type": "path",
+          "url": "packages/artryazanov/laravel-wikipedia-games-db"
+      },
+      {
+          "type": "path",
+          "url": "packages/artryazanov/laravel-gog-scanner"
+      }
+  ],
+  "require": {
+    "artryazanov/laravel-gog-scanner": "dev-main",
+    "artryazanov/laravel-steam-apps-db": "dev-main",
+    "artryazanov/laravel-wikipedia-games-db": "dev-main"
+  },
+  "autoload": {
+    "psr-4": {
+      "Artryazanov\\GamesAggregator\\": "src/"
+    }
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "Artryazanov\\GamesAggregator\\GamesAggregatorServiceProvider"
+      ]
+    }
+  },
+  "minimum-stability": "dev",
+  "prefer-stable": true,
+  "scripts": {
+    "test": "vendor/bin/phpunit"
+  },
+  "require-dev": {
+    "orchestra/testbench": "^9.0",
+    "phpunit/phpunit": "^10.5 || ^11.0",
+    "laravel/pint": "^1.24"
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Artryazanov\\GamesAggregator\\Tests\\": "tests/"
+    }
+  }
+}

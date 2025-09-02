@@ -1,0 +1,9 @@
+[submodule "packages/artryazanov/laravel-steam-apps-db"]
+	path = packages/artryazanov/laravel-steam-apps-db
+	url = https://github.com/artryazanov/laravel-steam-apps-db
+[submodule "packages/artryazanov/laravel-wikipedia-games-db"]
+	path = packages/artryazanov/laravel-wikipedia-games-db
+	url = https://github.com/artryazanov/laravel-wikipedia-games-db
+[submodule "packages/artryazanov/laravel-gog-scanner"]
+	path = packages/artryazanov/laravel-gog-scanner
+	url = https://github.com/artryazanov/laravel-gog-scanner
