@@ -52,6 +52,13 @@ class AggregateSteamAppsJob implements ShouldQueue
                     DB::transaction(function () use ($service, $name, $releaseYear, $developerNames, $publisherNames, $app) {
                         $gaGame = $service->findOrCreateGaGame($name, $releaseYear, $developerNames, $publisherNames);
 
+                        // Categories: Steam categories descriptions
+                        $catNames = $app->categories()->pluck('description')->all();
+                        if (! empty($catNames)) {
+                            $gaCatIds = $service->ensureCategories($catNames);
+                            $gaGame->categories()->syncWithoutDetaching($gaCatIds);
+                        }
+
                         try {
                             DB::table('ga_steam_app_links')->insert([
                                 'ga_game_id' => $gaGame->id,
@@ -65,4 +72,3 @@ class AggregateSteamAppsJob implements ShouldQueue
             });
     }
 }
-

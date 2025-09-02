@@ -54,6 +54,13 @@ class AggregateWikipediaGamesJob implements ShouldQueue
                     DB::transaction(function () use ($service, $name, $releaseYear, $developerNames, $publisherNames, $wg) {
                         $gaGame = $service->findOrCreateGaGame($name, $releaseYear, $developerNames, $publisherNames);
 
+                        // Categories: Wikipedia game modes as categories
+                        $catNames = $wg->modes()->pluck('name')->all();
+                        if (! empty($catNames)) {
+                            $gaCatIds = $service->ensureCategories($catNames);
+                            $gaGame->categories()->syncWithoutDetaching($gaCatIds);
+                        }
+
                         try {
                             DB::table('ga_wikipedia_game_links')->insert([
                                 'ga_game_id' => $gaGame->id,
@@ -67,4 +74,3 @@ class AggregateWikipediaGamesJob implements ShouldQueue
             });
     }
 }
-

@@ -27,7 +27,8 @@ class JobsAggregationTest extends TestCase
         $dev = GogCompany::create(['name' => 'id Software']);
         $pub = GogCompany::create(['name' => 'GT Interactive']);
 
-        $g = GogGame::create(['id' => 1, 'title' => 'Doom', 'release_date_iso' => '1993-12-10']);
+        $cat = \Artryazanov\GogScanner\Models\Category::create(['name' => 'Action']);
+        $g = GogGame::create(['id' => 1, 'title' => 'Doom', 'release_date_iso' => '1993-12-10', 'category_id' => $cat->id]);
         $g->developers()->attach($dev->id);
         $g->publishers()->attach($pub->id);
 
@@ -35,6 +36,8 @@ class JobsAggregationTest extends TestCase
 
         $this->assertDatabaseHas('ga_games', ['name' => 'Doom', 'release_year' => 1993]);
         $this->assertDatabaseHas('ga_gog_game_links', ['gog_game_id' => 1]);
+        // Category from gog category
+        $this->assertDatabaseHas('ga_categories', ['name' => 'Action']);
     }
 
     public function test_steam_job_creates_links_and_ga_entities(): void
@@ -50,10 +53,15 @@ class JobsAggregationTest extends TestCase
         $app->developers()->attach($dev->id);
         $app->publishers()->attach($pub->id);
 
+        // Add a Steam category
+        $catModel = \Artryazanov\LaravelSteamAppsDb\Models\SteamAppCategory::create(['category_id' => 1, 'description' => 'Single-player']);
+        $app->categories()->attach($catModel->id);
+
         (new AggregateSteamAppsJob(chunkSize: 50))->handle(app(AggregationService::class));
 
         $this->assertDatabaseHas('ga_games', ['name' => 'Doom', 'release_year' => 1993]);
         $this->assertDatabaseHas('ga_steam_app_links', ['steam_app_id' => $app->id]);
+        $this->assertDatabaseHas('ga_categories', ['name' => 'Single-player']);
     }
 
     public function test_wikipedia_job_creates_links_and_ga_entities(): void
@@ -64,10 +72,14 @@ class JobsAggregationTest extends TestCase
         $pub = WikiCompany::create(['name' => 'GT Interactive']);
         $game->companies()->attach([$dev->id => ['role' => 'developer'], $pub->id => ['role' => 'publisher']]);
 
+        // Add a Wikipedia mode and attach as category
+        $mode = \Artryazanov\WikipediaGamesDb\Models\Mode::create(['name' => 'Single-player']);
+        $game->modes()->attach($mode->id);
+
         (new AggregateWikipediaGamesJob(chunkSize: 50))->handle(app(AggregationService::class));
 
         $this->assertDatabaseHas('ga_games', ['name' => 'Doom', 'release_year' => 1993]);
         $this->assertDatabaseHas('ga_wikipedia_game_links', ['wikipedia_game_id' => $game->id]);
+        $this->assertDatabaseHas('ga_categories', ['name' => 'Single-player']);
     }
 }
-

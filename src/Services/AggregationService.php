@@ -3,6 +3,7 @@
 namespace Artryazanov\GamesAggregator\Services;
 
 use Artryazanov\GamesAggregator\Models\GaCompany;
+use Artryazanov\GamesAggregator\Models\GaCategory;
 use Artryazanov\GamesAggregator\Models\GaGame;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
@@ -142,6 +143,22 @@ class AggregationService
             if ($n === '') continue;
             $company = GaCompany::firstOrCreate(['name' => $n]);
             $ids[] = $company->id;
+        }
+        return array_values(array_unique($ids));
+    }
+
+    /**
+     * @param array<int,string> $names
+     * @return array<int,int> Category IDs
+     */
+    public function ensureCategories(array $names): array
+    {
+        $names = $this->normalizeNames($names);
+        $ids = [];
+        foreach ($names as $n) {
+            if ($n === '') continue;
+            $cat = GaCategory::firstOrCreate(['name' => $n]);
+            $ids[] = $cat->id;
         }
         return array_values(array_unique($ids));
     }

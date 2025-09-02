@@ -53,6 +53,16 @@ class AggregateGogGamesJob implements ShouldQueue
                     DB::transaction(function () use ($service, $name, $releaseYear, $developerNames, $publisherNames, $g) {
                         $gaGame = $service->findOrCreateGaGame($name, $releaseYear, $developerNames, $publisherNames);
 
+                        // Categories: from gog category and original_category
+                        $catNames = array_values(array_unique(array_filter([
+                            optional($g->category)->name,
+                            optional($g->originalCategory)->name,
+                        ], fn ($v) => (string) $v !== '')));
+                        if (! empty($catNames)) {
+                            $gaCatIds = $service->ensureCategories($catNames);
+                            $gaGame->categories()->syncWithoutDetaching($gaCatIds);
+                        }
+
                         // Link to source if not linked
                         try {
                             DB::table('ga_gog_game_links')->insert([
@@ -82,4 +92,3 @@ class AggregateGogGamesJob implements ShouldQueue
         return null;
     }
 }
-

@@ -27,5 +27,9 @@ class GaGame extends Model
     {
         return $this->belongsToMany(GaCompany::class, 'ga_game_publishers', 'ga_game_id', 'ga_company_id');
     }
-}
 
+    public function categories(): BelongsToMany
+    {
+        return $this->belongsToMany(GaCategory::class, 'ga_game_categories', 'ga_game_id', 'ga_category_id');
+    }
+}
