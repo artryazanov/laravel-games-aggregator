@@ -12,4 +12,3 @@ class GaCompany extends Model
         'name',
     ];
 }
-

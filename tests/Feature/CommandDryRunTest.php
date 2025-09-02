@@ -33,4 +33,3 @@ class CommandDryRunTest extends TestCase
         $this->assertDatabaseCount('ga_steam_app_links', 0);
     }
 }
-
