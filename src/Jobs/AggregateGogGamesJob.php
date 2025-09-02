@@ -17,7 +17,11 @@ class AggregateGogGamesJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    public int $tries = 3;
+
     public int $timeout = 300;
+
+    public int $backoff = 30;
 
     public function __construct(public int $chunkSize = 500)
     {
