@@ -9,7 +9,7 @@ use Illuminate\Console\Command;
 
 class AggregateGamesCommand extends Command
 {
-    protected $signature = 'ga:aggregate {--source=* : Sources to aggregate: gog,steam,wikipedia} {--chunk=100 : Chunk size per job} {--dry-run : Simulate without DB writes} {--limit=200 : Max items to scan per source in dry-run}';
+    protected $signature = 'ga:aggregate {--source=* : Sources to aggregate: gog,steam,wikipedia} {--chunk=500 : Chunk size per job} {--dry-run : Simulate without DB writes} {--limit=200 : Max items to scan per source in dry-run}';
     protected $description = 'Aggregate base game data into ga_ tables using queues and jobs.';
 
     public function handle(): int

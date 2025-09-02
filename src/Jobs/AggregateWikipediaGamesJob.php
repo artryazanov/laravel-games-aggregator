@@ -16,9 +16,9 @@ class AggregateWikipediaGamesJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $timeout = 180;
+    public int $timeout = 300;
 
-    public function __construct(public int $chunkSize = 100)
+    public function __construct(public int $chunkSize = 500)
     {
     }
 
