@@ -27,7 +27,7 @@ class AggregateGogGamesJob implements ShouldQueue
     public function handle(AggregationService $service): void
     {
         GogGame::query()
-            ->whereRaw('NOT EXISTS (SELECT 1 FROM ga_gog_game_links l WHERE l.gog_game_id = gog_games.id)')
+            ->whereRaw('NOT EXISTS (SELECT 1 FROM ga_games g WHERE g.gog_game_id = gog_games.id)')
             ->whereNotNull('title')
             ->where(function ($q) {
                 $q->whereHas('developers')
@@ -72,13 +72,12 @@ class AggregateGogGamesJob implements ShouldQueue
                         }
 
                         // Link to source if not linked
-                        try {
-                            DB::table('ga_gog_game_links')->insert([
-                                'ga_game_id' => $gaGame->id,
-                                'gog_game_id' => $g->id,
-                            ]);
-                        } catch (QueryException $e) {
-                            // Ignore duplicate errors
+                        if (! $gaGame->gog_game_id) {
+                            try {
+                                $gaGame->update(['gog_game_id' => $g->id]);
+                            } catch (QueryException $e) {
+                                // Ignore duplicate errors
+                            }
                         }
                     });
                 }

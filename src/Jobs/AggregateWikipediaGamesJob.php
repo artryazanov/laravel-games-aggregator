@@ -28,7 +28,7 @@ class AggregateWikipediaGamesJob implements ShouldQueue
     {
         // wikipedia_games now stores title on related wikipage, but we can still filter by required pivots and missing link
         WikipediaGame::query()
-            ->whereRaw('NOT EXISTS (SELECT 1 FROM ga_wikipedia_game_links l WHERE l.wikipedia_game_id = wikipedia_games.id)')
+            ->whereRaw('NOT EXISTS (SELECT 1 FROM ga_games g WHERE g.wikipedia_game_id = wikipedia_games.id)')
             ->where(function ($q) {
                 // Release year or release_date is required (release_year may be null, but release_date could be set)
                 $q->whereNotNull('release_year')
@@ -70,13 +70,12 @@ class AggregateWikipediaGamesJob implements ShouldQueue
                             $gaGame->genres()->syncWithoutDetaching($gaGenreIds);
                         }
 
-                        try {
-                            DB::table('ga_wikipedia_game_links')->insert([
-                                'ga_game_id' => $gaGame->id,
-                                'wikipedia_game_id' => $wg->id,
-                            ]);
-                        } catch (QueryException $e) {
-                            // Ignore duplicate errors
+                        if (! $gaGame->wikipedia_game_id) {
+                            try {
+                                $gaGame->update(['wikipedia_game_id' => $wg->id]);
+                            } catch (QueryException $e) {
+                                // Ignore duplicate errors
+                            }
                         }
                     });
                 }

@@ -27,7 +27,7 @@ class AggregateSteamAppsJob implements ShouldQueue
     public function handle(AggregationService $service): void
     {
         SteamApp::query()
-            ->whereRaw('NOT EXISTS (SELECT 1 FROM ga_steam_app_links l WHERE l.steam_app_id = steam_apps.id)')
+            ->whereRaw('NOT EXISTS (SELECT 1 FROM ga_games g WHERE g.steam_app_id = steam_apps.id)')
             ->whereHas('detail', function ($q) {
                 $q->whereNotNull('release_date');
             })
@@ -68,13 +68,12 @@ class AggregateSteamAppsJob implements ShouldQueue
                             $gaGame->genres()->syncWithoutDetaching($gaGenreIds);
                         }
 
-                        try {
-                            DB::table('ga_steam_app_links')->insert([
-                                'ga_game_id' => $gaGame->id,
-                                'steam_app_id' => $app->id,
-                            ]);
-                        } catch (QueryException $e) {
-                            // Ignore duplicate errors
+                        if (! $gaGame->steam_app_id) {
+                            try {
+                                $gaGame->update(['steam_app_id' => $app->id]);
+                            } catch (QueryException $e) {
+                                // Ignore duplicate errors
+                            }
                         }
                     });
                 }

@@ -38,8 +38,7 @@ class JobsAggregationTest extends TestCase
 
         (new AggregateGogGamesJob(chunkSize: 50))->handle(app(AggregationService::class));
 
-        $this->assertDatabaseHas('ga_games', ['name' => 'Doom', 'release_year' => 1993]);
-        $this->assertDatabaseHas('ga_gog_game_links', ['gog_game_id' => 1]);
+        $this->assertDatabaseHas('ga_games', ['name' => 'Doom', 'release_year' => 1993, 'gog_game_id' => 1]);
         // Category from gog category
         $this->assertDatabaseHas('ga_categories', ['name' => 'Action']);
         $this->assertDatabaseHas('ga_genres', ['name' => 'Shooter']);
@@ -68,8 +67,7 @@ class JobsAggregationTest extends TestCase
 
         (new AggregateSteamAppsJob(chunkSize: 50))->handle(app(AggregationService::class));
 
-        $this->assertDatabaseHas('ga_games', ['name' => 'Doom', 'release_year' => 1993]);
-        $this->assertDatabaseHas('ga_steam_app_links', ['steam_app_id' => $app->id]);
+        $this->assertDatabaseHas('ga_games', ['name' => 'Doom', 'release_year' => 1993, 'steam_app_id' => $app->id]);
         $this->assertDatabaseHas('ga_categories', ['name' => 'Single-player']);
         $this->assertDatabaseHas('ga_genres', ['name' => 'Action']);
     }
@@ -92,8 +90,7 @@ class JobsAggregationTest extends TestCase
 
         (new AggregateWikipediaGamesJob(chunkSize: 50))->handle(app(AggregationService::class));
 
-        $this->assertDatabaseHas('ga_games', ['name' => 'Doom', 'release_year' => 1993]);
-        $this->assertDatabaseHas('ga_wikipedia_game_links', ['wikipedia_game_id' => $game->id]);
+        $this->assertDatabaseHas('ga_games', ['name' => 'Doom', 'release_year' => 1993, 'wikipedia_game_id' => $game->id]);
         $this->assertDatabaseHas('ga_categories', ['name' => 'Single-player']);
         $this->assertDatabaseHas('ga_genres', ['name' => 'Action']);
     }

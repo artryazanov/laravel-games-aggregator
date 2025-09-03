@@ -30,6 +30,6 @@ class CommandDryRunTest extends TestCase
             ->assertExitCode(0);
 
         $this->assertDatabaseCount('ga_games', 0);
-        $this->assertDatabaseCount('ga_steam_app_links', 0);
+        $this->assertDatabaseMissing('ga_games', ['steam_app_id' => $app->id]);
     }
 }
