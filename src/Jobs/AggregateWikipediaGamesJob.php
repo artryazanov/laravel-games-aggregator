@@ -47,8 +47,8 @@ class AggregateWikipediaGamesJob implements ShouldQueue
                         continue;
                     }
 
-                    $developerNames = $wg->developers()->pluck('name')->all();
-                    $publisherNames = $wg->publishers()->pluck('name')->all();
+                    $developerNames = $wg->developers()->pluck('clean_name')->all();
+                    $publisherNames = $wg->publishers()->pluck('clean_name')->all();
 
                     if (empty($developerNames) || empty($publisherNames)) {
                         continue;
