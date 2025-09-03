@@ -81,7 +81,7 @@ class AggregateGamesCommand extends Command
         $this->line('GOG: scanning candidates...');
         $service = app(\Artryazanov\GamesAggregator\Services\AggregationService::class);
         $q = \Artryazanov\GogScanner\Models\Game::query()
-            ->whereRaw('NOT EXISTS (SELECT 1 FROM ga_gog_game_links l WHERE l.gog_game_id = gog_games.id)')
+            ->whereRaw('NOT EXISTS (SELECT 1 FROM ga_games g WHERE g.gog_game_id = gog_games.id)')
             ->whereNotNull('title')
             ->whereHas('developers')
             ->whereHas('publishers')
@@ -144,7 +144,7 @@ class AggregateGamesCommand extends Command
         $this->line('Steam: scanning candidates...');
         $service = app(\Artryazanov\GamesAggregator\Services\AggregationService::class);
         $q = \Artryazanov\LaravelSteamAppsDb\Models\SteamApp::query()
-            ->whereRaw('NOT EXISTS (SELECT 1 FROM ga_steam_app_links l WHERE l.steam_app_id = steam_apps.id)')
+            ->whereRaw('NOT EXISTS (SELECT 1 FROM ga_games g WHERE g.steam_app_id = steam_apps.id)')
             ->whereHas('detail', fn ($q) => $q->whereNotNull('release_date'))
             ->whereHas('developers')
             ->whereHas('publishers')
@@ -197,7 +197,7 @@ class AggregateGamesCommand extends Command
         $this->line('Wikipedia: scanning candidates...');
         $service = app(\Artryazanov\GamesAggregator\Services\AggregationService::class);
         $q = \Artryazanov\WikipediaGamesDb\Models\Game::query()
-            ->whereRaw('NOT EXISTS (SELECT 1 FROM ga_wikipedia_game_links l WHERE l.wikipedia_game_id = wikipedia_games.id)')
+            ->whereRaw('NOT EXISTS (SELECT 1 FROM ga_games g WHERE g.wikipedia_game_id = wikipedia_games.id)')
             ->where(fn ($q) => $q->whereNotNull('release_year')->orWhereNotNull('release_date'))
             ->whereHas('developers')
             ->whereHas('publishers')

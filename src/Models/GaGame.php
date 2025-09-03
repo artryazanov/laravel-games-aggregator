@@ -12,10 +12,16 @@ class GaGame extends Model
     protected $fillable = [
         'name',
         'release_year',
+        'gog_game_id',
+        'steam_app_id',
+        'wikipedia_game_id',
     ];
 
     protected $casts = [
         'release_year' => 'integer',
+        'gog_game_id' => 'integer',
+        'steam_app_id' => 'integer',
+        'wikipedia_game_id' => 'integer',
     ];
 
     public function developers(): BelongsToMany

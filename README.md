@@ -34,13 +34,12 @@ Populate source tables using their own commands (run queue workers as needed):
   - Or start scrape:        php artisan games:scrape-wikipedia --seed-high-value
 
 Schema Overview (created by this package)
-- `ga_games` (id, name, release_year, timestamps)
+- `ga_games` (id, name, release_year, gog_game_id, steam_app_id, wikipedia_game_id, timestamps)
 - `ga_companies` (id, name unique, timestamps)
 - `ga_game_developers` (pivot ga_game_id <-> ga_company_id)
 - `ga_game_publishers` (pivot ga_game_id <-> ga_company_id)
-- `ga_gog_game_links` (ga_game_id <-> gog_games.id, unique per GOG game)
-- `ga_steam_app_links` (ga_game_id <-> steam_apps.id, unique per Steam app)
-- `ga_wikipedia_game_links` (ga_game_id <-> wikipedia_games.id, unique per Wikipedia game)
+- `ga_game_categories` (pivot ga_game_id <-> ga_category_id)
+- `ga_game_genres` (pivot ga_game_id <-> ga_genre_id)
 
 Aggregation Rules
 Only source rows that meet all required fields are considered:
@@ -54,7 +53,7 @@ Matching logic for linking to `ga_games`:
   - Any developer overlaps
   - Any publisher overlaps
 
-If no aggregated record matches, a new `ga_games` row is created, missing GA companies are created, and developer/publisher relations are attached. Each source row is then linked to exactly one `ga_games` record via its link table.
+If no aggregated record matches, a new `ga_games` row is created, missing GA companies are created, and developer/publisher relations are attached. Each source row is then linked to exactly one `ga_games` record via dedicated foreign key columns.
 
 Usage
 - Real run (queues + jobs):
