@@ -35,4 +35,3 @@ return new class extends Migration
         // This migration is destructive (deletes rows) and cannot be reversed.
     }
 };
-
