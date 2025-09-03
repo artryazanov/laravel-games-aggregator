@@ -39,7 +39,8 @@ class AggregateWikipediaGamesJob implements ShouldQueue
             ->orderBy('id')
             ->chunkById($this->chunkSize, function ($games) use ($service) {
                 foreach ($games as $wg) {
-                    $name = trim((string) ($wg->wikipage?->title ?? ''));
+                    // Use normalized clean_title from wikipedia_games instead of wikipage title
+                    $name = trim((string) ($wg->clean_title ?? ''));
                     $releaseYear = $wg->release_year ?? ($wg->release_date ? (int) $wg->release_date->format('Y') : null);
 
                     if ($name === '' || $releaseYear === null) {

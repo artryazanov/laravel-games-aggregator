@@ -75,7 +75,7 @@ class JobsAggregationTest extends TestCase
     public function test_wikipedia_job_creates_links_and_ga_entities(): void
     {
         $wikipage = Wikipage::create(['title' => 'Doom', 'wikipedia_url' => 'https://en.wikipedia.org/wiki/Doom']);
-        $game = WikipediaGame::create(['wikipage_id' => $wikipage->id, 'release_year' => 1993]);
+        $game = WikipediaGame::create(['wikipage_id' => $wikipage->id, 'clean_title' => 'Doom', 'release_year' => 1993]);
         $dev = WikiCompany::create(['name' => 'id Software']);
         $pub = WikiCompany::create(['name' => 'GT Interactive']);
         $game->companies()->attach([$dev->id => ['role' => 'developer'], $pub->id => ['role' => 'publisher']]);
