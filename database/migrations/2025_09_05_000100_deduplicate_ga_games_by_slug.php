@@ -37,4 +37,3 @@ return new class extends Migration
         // Irreversible cleanup; nothing to do.
     }
 };
-

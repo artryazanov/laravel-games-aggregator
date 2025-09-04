@@ -109,6 +109,7 @@ class GaGame extends Model
         $slug = preg_replace('/\s+/u', '-', $slug);
         $slug = preg_replace('/[^\p{L}\p{M}\p{N}-]+/u', '', $slug);
         $slug = preg_replace('/-+/u', '-', $slug);
+
         return trim((string) $slug, '-');
     }
 

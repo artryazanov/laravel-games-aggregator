@@ -27,4 +27,3 @@ class GaGameSlugTest extends TestCase
         $this->assertDatabaseHas('ga_games', ['id' => $game->id, 'slug' => 'ведьмак-3-дикая-охота']);
     }
 }
-
