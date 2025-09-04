@@ -19,11 +19,12 @@ class AggregationService
     public function findOrCreateGaGame(string $name, ?int $releaseYear, array $developerNames, array $publisherNames): GaGame
     {
         $name = trim($name);
+        $slug = $this->makeSlug($name);
         $developerNames = $this->normalizeNames($developerNames);
         $publisherNames = $this->normalizeNames($publisherNames);
 
-        // Try to find matching game(s) by exact name first
-        $candidates = GaGame::query()->where('name', $name)->get();
+        // Try to find matching game(s) by exact slug first
+        $candidates = GaGame::query()->where('slug', $slug)->get();
 
         // Ensure GA companies exist for provided names (we return IDs for later linking)
         $devCompanyIds = $this->ensureCompanies($developerNames);
@@ -86,6 +87,7 @@ class AggregationService
     public function simulateDecision(string $name, ?int $releaseYear, array $developerNames, array $publisherNames): array
     {
         $name = trim($name);
+        $slug = $this->makeSlug($name);
         $devNames = $this->normalizeNames($developerNames);
         $pubNames = $this->normalizeNames($publisherNames);
 
@@ -108,7 +110,7 @@ class AggregationService
             }
         }
 
-        $candidates = GaGame::query()->where('name', $name)->get();
+        $candidates = GaGame::query()->where('slug', $slug)->get();
         $best = null;
         $bestScore = -1;
         $bestReleaseMatch = false;
@@ -222,5 +224,14 @@ class AggregationService
         }
 
         return array_values($out);
+    }
+
+    private function makeSlug(string $source): string
+    {
+        $slug = mb_strtolower($source, 'UTF-8');
+        $slug = preg_replace('/\s+/u', '-', $slug);
+        $slug = preg_replace('/[^\p{L}\p{M}\p{N}-]+/u', '', $slug);
+        $slug = preg_replace('/-+/u', '-', $slug);
+        return trim((string) $slug, '-');
     }
 }

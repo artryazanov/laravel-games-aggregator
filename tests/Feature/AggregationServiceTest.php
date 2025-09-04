@@ -38,6 +38,20 @@ class AggregationServiceTest extends TestCase
         $this->assertDatabaseHas('ga_games', ['id' => $existing->id, 'name' => 'Doom', 'release_year' => 1993]);
     }
 
+    public function test_matches_by_slug_even_if_name_differs(): void
+    {
+        $service = app(AggregationService::class);
+
+        $existing = GaGame::create(['name' => 'Doom', 'release_year' => 1993]);
+
+        // Name differs but slug is the same ("Doom!" -> slug "doom")
+        $matched = $service->findOrCreateGaGame('Doom!', 1993, ['Id Software'], ['GT Interactive']);
+
+        $this->assertSame($existing->id, $matched->id);
+        $this->assertDatabaseCount('ga_games', 1);
+        $this->assertDatabaseHas('ga_games', ['id' => $existing->id, 'slug' => 'doom']);
+    }
+
     public function test_matches_by_overlapping_developer(): void
     {
         $service = app(AggregationService::class);

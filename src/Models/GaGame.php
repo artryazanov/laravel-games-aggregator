@@ -49,6 +49,14 @@ class GaGame extends Model
 
     protected static function booted(): void
     {
+        // Auto-generate slug on create
+        static::creating(function (GaGame $game) {
+            $name = (string) ($game->name ?? '');
+            if ($name !== '' && empty($game->slug)) {
+                $game->slug = self::makeSlug($name);
+            }
+        });
+
         static::saving(function (GaGame $game) {
             $sourceYears = [];
 
@@ -93,6 +101,15 @@ class GaGame extends Model
                 }
             }
         });
+    }
+
+    private static function makeSlug(string $source): string
+    {
+        $slug = mb_strtolower($source, 'UTF-8');
+        $slug = preg_replace('/\s+/u', '-', $slug);
+        $slug = preg_replace('/[^\p{L}\p{M}\p{N}-]+/u', '', $slug);
+        $slug = preg_replace('/-+/u', '-', $slug);
+        return trim((string) $slug, '-');
     }
 
     private static function extractYearFromGog(GogGame $gog): ?int
