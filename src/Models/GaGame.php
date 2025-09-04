@@ -2,11 +2,11 @@
 
 namespace Artryazanov\GamesAggregator\Models;
 
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Artryazanov\GogScanner\Models\Game as GogGame;
 use Artryazanov\LaravelSteamAppsDb\Models\SteamApp;
 use Artryazanov\WikipediaGamesDb\Models\Game as WikipediaGame;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class GaGame extends Model
 {
