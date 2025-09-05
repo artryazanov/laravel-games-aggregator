@@ -18,6 +18,7 @@ class GaGame extends Model
         'gog_game_id',
         'steam_app_id',
         'wikipedia_game_id',
+        'type',
     ];
 
     protected $casts = [
@@ -25,6 +26,7 @@ class GaGame extends Model
         'gog_game_id' => 'integer',
         'steam_app_id' => 'integer',
         'wikipedia_game_id' => 'integer',
+        'type' => 'string',
     ];
 
     public function developers(): BelongsToMany
@@ -54,6 +56,11 @@ class GaGame extends Model
             $name = (string) ($game->name ?? '');
             if ($name !== '' && empty($game->slug)) {
                 $game->slug = self::makeSlug($name);
+            }
+
+            // Set initial type based on available links or default to 'game'
+            if (empty($game->type)) {
+                $game->type = self::resolveTypeFor($game);
             }
         });
 
@@ -100,6 +107,11 @@ class GaGame extends Model
                     $game->release_year = min((int) $current, (int) $minSource);
                 }
             }
+
+            // Recompute type when any source link changes
+            if ($game->isDirty('steam_app_id') || $game->isDirty('gog_game_id') || $game->isDirty('wikipedia_game_id')) {
+                $game->type = self::resolveTypeFor($game);
+            }
         });
     }
 
@@ -128,5 +140,33 @@ class GaGame extends Model
         }
 
         return null;
+    }
+
+    private static function resolveTypeFor(GaGame $game): string
+    {
+        // Priority: Steam detail.type -> GOG game_type -> 'game'
+        if (! empty($game->steam_app_id)) {
+            $app = SteamApp::with('detail')->find($game->steam_app_id);
+            $steamType = self::cleanType($app?->detail?->type ?? null);
+            if ($steamType !== null) {
+                return $steamType;
+            }
+        }
+
+        if (! empty($game->gog_game_id)) {
+            $gog = GogGame::find($game->gog_game_id);
+            $gogType = self::cleanType($gog?->game_type ?? null);
+            if ($gogType !== null) {
+                return $gogType;
+            }
+        }
+
+        return 'game';
+    }
+
+    private static function cleanType($value): ?string
+    {
+        $v = is_string($value) ? trim($value) : '';
+        return $v !== '' ? $v : null;
     }
 }
