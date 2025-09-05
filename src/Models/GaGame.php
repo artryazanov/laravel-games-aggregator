@@ -167,6 +167,7 @@ class GaGame extends Model
     private static function cleanType($value): ?string
     {
         $v = is_string($value) ? trim($value) : '';
+
         return $v !== '' ? $v : null;
     }
 }

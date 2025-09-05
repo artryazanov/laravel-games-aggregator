@@ -72,7 +72,7 @@ return new class extends Migration
     private function cleanType($value): ?string
     {
         $v = is_string($value) ? trim($value) : '';
+
         return $v !== '' ? $v : null;
     }
 };
-
