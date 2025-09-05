@@ -4,25 +4,10 @@ namespace Artryazanov\GamesAggregator\Jobs;
 
 use Artryazanov\GamesAggregator\Services\AggregationService;
 use Artryazanov\LaravelSteamAppsDb\Models\SteamApp;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Database\Query\Exception as QueryException;
-use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\DB;
 
-class AggregateSteamAppsJob implements ShouldQueue
+class AggregateSteamAppsJob extends BaseAggregateJob
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
-
-    public int $tries = 3;
-
-    public int $timeout = 300;
-
-    public int $backoff = 30;
-
-    public function __construct(public int $chunkSize = 500) {}
+    public function __construct(public int $chunkSize = 500) { parent::__construct($chunkSize); }
 
     public function handle(AggregationService $service): void
     {
@@ -51,30 +36,16 @@ class AggregateSteamAppsJob implements ShouldQueue
                         continue;
                     }
 
-                    DB::transaction(function () use ($service, $name, $releaseYear, $developerNames, $publisherNames, $app) {
+                    $this->withTransaction(function () use ($service, $name, $releaseYear, $developerNames, $publisherNames, $app) {
                         $gaGame = $service->findOrCreateGaGame($name, $releaseYear, $developerNames, $publisherNames);
 
                         // Categories: Steam categories descriptions
-                        $catNames = $app->categories()->pluck('description')->all();
-                        if (! empty($catNames)) {
-                            $gaCatIds = $service->ensureCategories($catNames);
-                            $gaGame->categories()->syncWithoutDetaching($gaCatIds);
-                        }
+                        $this->syncCategories($gaGame, $service, $app->categories()->pluck('description')->all());
 
                         // Genres: Steam genres descriptions
-                        $genreNames = $app->genres()->pluck('description')->all();
-                        if (! empty($genreNames)) {
-                            $gaGenreIds = $service->ensureGenres($genreNames);
-                            $gaGame->genres()->syncWithoutDetaching($gaGenreIds);
-                        }
+                        $this->syncGenres($gaGame, $service, $app->genres()->pluck('description')->all());
 
-                        if (! $gaGame->steam_app_id) {
-                            try {
-                                $gaGame->update(['steam_app_id' => $app->id]);
-                            } catch (QueryException $e) {
-                                // Ignore duplicate errors
-                            }
-                        }
+                        $this->linkIfEmpty($gaGame, ['steam_app_id' => $app->id]);
                     });
                 }
             });

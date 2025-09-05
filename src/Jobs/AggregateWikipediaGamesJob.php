@@ -4,25 +4,10 @@ namespace Artryazanov\GamesAggregator\Jobs;
 
 use Artryazanov\GamesAggregator\Services\AggregationService;
 use Artryazanov\WikipediaGamesDb\Models\Game as WikipediaGame;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Database\Query\Exception as QueryException;
-use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\DB;
 
-class AggregateWikipediaGamesJob implements ShouldQueue
+class AggregateWikipediaGamesJob extends BaseAggregateJob
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
-
-    public int $tries = 3;
-
-    public int $timeout = 300;
-
-    public int $backoff = 30;
-
-    public function __construct(public int $chunkSize = 500) {}
+    public function __construct(public int $chunkSize = 500) { parent::__construct($chunkSize); }
 
     public function handle(AggregationService $service): void
     {
@@ -54,30 +39,16 @@ class AggregateWikipediaGamesJob implements ShouldQueue
                         continue;
                     }
 
-                    DB::transaction(function () use ($service, $name, $releaseYear, $developerNames, $publisherNames, $wg) {
+                    $this->withTransaction(function () use ($service, $name, $releaseYear, $developerNames, $publisherNames, $wg) {
                         $gaGame = $service->findOrCreateGaGame($name, $releaseYear, $developerNames, $publisherNames);
 
                         // Categories: Wikipedia game modes as categories
-                        $catNames = $wg->modes()->pluck('name')->all();
-                        if (! empty($catNames)) {
-                            $gaCatIds = $service->ensureCategories($catNames);
-                            $gaGame->categories()->syncWithoutDetaching($gaCatIds);
-                        }
+                        $this->syncCategories($gaGame, $service, $wg->modes()->pluck('name')->all());
 
                         // Genres: Wikipedia genres names
-                        $genreNames = $wg->genres()->pluck('name')->all();
-                        if (! empty($genreNames)) {
-                            $gaGenreIds = $service->ensureGenres($genreNames);
-                            $gaGame->genres()->syncWithoutDetaching($gaGenreIds);
-                        }
+                        $this->syncGenres($gaGame, $service, $wg->genres()->pluck('name')->all());
 
-                        if (! $gaGame->wikipedia_game_id) {
-                            try {
-                                $gaGame->update(['wikipedia_game_id' => $wg->id]);
-                            } catch (QueryException $e) {
-                                // Ignore duplicate errors
-                            }
-                        }
+                        $this->linkIfEmpty($gaGame, ['wikipedia_game_id' => $wg->id]);
                     });
                 }
             });

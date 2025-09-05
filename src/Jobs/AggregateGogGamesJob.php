@@ -4,25 +4,10 @@ namespace Artryazanov\GamesAggregator\Jobs;
 
 use Artryazanov\GamesAggregator\Services\AggregationService;
 use Artryazanov\GogScanner\Models\Game as GogGame;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Database\Query\Exception as QueryException;
-use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\DB;
 
-class AggregateGogGamesJob implements ShouldQueue
+class AggregateGogGamesJob extends BaseAggregateJob
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
-
-    public int $tries = 3;
-
-    public int $timeout = 300;
-
-    public int $backoff = 30;
-
-    public function __construct(public int $chunkSize = 500) {}
+    public function __construct(public int $chunkSize = 500) { parent::__construct($chunkSize); }
 
     public function handle(AggregationService $service): void
     {
@@ -51,34 +36,17 @@ class AggregateGogGamesJob implements ShouldQueue
                         continue;
                     }
 
-                    DB::transaction(function () use ($service, $name, $releaseYear, $developerNames, $publisherNames, $g) {
+                    $this->withTransaction(function () use ($service, $name, $releaseYear, $developerNames, $publisherNames, $g) {
                         $gaGame = $service->findOrCreateGaGame($name, $releaseYear, $developerNames, $publisherNames);
 
                         // Categories: from gog category and original_category
-                        $catNames = array_values(array_unique(array_filter([
-                            optional($g->category)->name,
-                            optional($g->originalCategory)->name,
-                        ], fn ($v) => (string) $v !== '')));
-                        if (! empty($catNames)) {
-                            $gaCatIds = $service->ensureCategories($catNames);
-                            $gaGame->categories()->syncWithoutDetaching($gaCatIds);
-                        }
+                        $this->syncCategories($gaGame, $service, [optional($g->category)->name, optional($g->originalCategory)->name]);
 
                         // Genres from GOG pivot
-                        $genreNames = $g->genres()->pluck('name')->all();
-                        if (! empty($genreNames)) {
-                            $gaGenreIds = $service->ensureGenres($genreNames);
-                            $gaGame->genres()->syncWithoutDetaching($gaGenreIds);
-                        }
+                        $this->syncGenres($gaGame, $service, $g->genres()->pluck('name')->all());
 
                         // Link to source if not linked
-                        if (! $gaGame->gog_game_id) {
-                            try {
-                                $gaGame->update(['gog_game_id' => $g->id]);
-                            } catch (QueryException $e) {
-                                // Ignore duplicate errors
-                            }
-                        }
+                        $this->linkIfEmpty($gaGame, ['gog_game_id' => $g->id]);
                     });
                 }
             });
