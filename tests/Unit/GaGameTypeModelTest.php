@@ -67,4 +67,3 @@ class GaGameTypeModelTest extends TestCase
         $this->assertSame('demo', $ga->type);
     }
 }
-
