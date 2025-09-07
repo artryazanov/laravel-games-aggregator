@@ -7,7 +7,10 @@ use Artryazanov\WikipediaGamesDb\Models\Game as WikipediaGame;
 
 class AggregateWikipediaGamesJob extends BaseAggregateJob
 {
-    public function __construct(public int $chunkSize = 500) { parent::__construct($chunkSize); }
+    public function __construct(public int $chunkSize = 500)
+    {
+        parent::__construct($chunkSize);
+    }
 
     public function handle(AggregationService $service): void
     {

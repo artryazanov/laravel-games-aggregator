@@ -16,7 +16,9 @@ abstract class BaseAggregateJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 3;
+
     public int $timeout = 1800;
+
     public int $backoff = 30;
 
     public function __construct(public int $chunkSize = 500) {}
@@ -66,4 +68,3 @@ abstract class BaseAggregateJob implements ShouldQueue
         }
     }
 }
-

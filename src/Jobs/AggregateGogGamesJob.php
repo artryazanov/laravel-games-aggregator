@@ -7,7 +7,10 @@ use Artryazanov\GogScanner\Models\Game as GogGame;
 
 class AggregateGogGamesJob extends BaseAggregateJob
 {
-    public function __construct(public int $chunkSize = 500) { parent::__construct($chunkSize); }
+    public function __construct(public int $chunkSize = 500)
+    {
+        parent::__construct($chunkSize);
+    }
 
     public function handle(AggregationService $service): void
     {
