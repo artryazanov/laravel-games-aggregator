@@ -16,6 +16,7 @@ class AggregateSteamAppsJob extends BaseAggregateJob
     {
         SteamApp::query()
             ->whereRaw('NOT EXISTS (SELECT 1 FROM ga_games g WHERE g.steam_app_id = steam_apps.id)')
+            ->whereRaw('NOT EXISTS (SELECT 1 FROM ga_games g WHERE g.second_steam_app_id = steam_apps.id)')
             ->whereHas('detail', function ($q) {
                 $q->whereNotNull('release_date');
             })
@@ -48,7 +49,11 @@ class AggregateSteamAppsJob extends BaseAggregateJob
                         // Genres: Steam genres descriptions
                         $this->syncGenres($gaGame, $service, $app->genres()->pluck('description')->all());
 
-                        $this->linkIfEmpty($gaGame, ['steam_app_id' => $app->id]);
+                        if (empty($gaGame->steam_app_id)) {
+                            $this->linkIfEmpty($gaGame, ['steam_app_id' => $app->id]);
+                        } elseif (empty($gaGame->second_steam_app_id)) {
+                            $this->linkIfEmpty($gaGame, ['second_steam_app_id' => $app->id]);
+                        }
                     });
                 }
             });

@@ -17,6 +17,7 @@ class GaGame extends Model
         'release_year',
         'gog_game_id',
         'steam_app_id',
+        'second_steam_app_id',
         'wikipedia_game_id',
         'type',
     ];
@@ -25,6 +26,7 @@ class GaGame extends Model
         'release_year' => 'integer',
         'gog_game_id' => 'integer',
         'steam_app_id' => 'integer',
+        'second_steam_app_id' => 'integer',
         'wikipedia_game_id' => 'integer',
         'type' => 'string',
     ];
