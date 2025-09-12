@@ -117,7 +117,7 @@ class GaGame extends Model
         });
     }
 
-    private static function makeSlug(string $source): string
+    public static function makeSlug(string $source): string
     {
         $slug = mb_strtolower($source, 'UTF-8');
         $slug = preg_replace('/\s+/u', '-', $slug);
