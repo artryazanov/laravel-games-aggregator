@@ -21,11 +21,13 @@ return new class extends Migration
         if ($driver === 'mysql') {
             // Keep length at default 255
             DB::statement('ALTER TABLE `ga_games` MODIFY `slug` VARCHAR(255) NOT NULL');
+
             return;
         }
 
         if ($driver === 'pgsql') {
             DB::statement('ALTER TABLE ga_games ALTER COLUMN slug SET NOT NULL');
+
             return;
         }
 
@@ -45,11 +47,13 @@ return new class extends Migration
 
         if ($driver === 'mysql') {
             DB::statement('ALTER TABLE `ga_games` MODIFY `slug` VARCHAR(255) NULL');
+
             return;
         }
 
         if ($driver === 'pgsql') {
             DB::statement('ALTER TABLE ga_games ALTER COLUMN slug DROP NOT NULL');
+
             return;
         }
 
