@@ -20,8 +20,10 @@ class AggregateSteamAppsJob extends BaseAggregateJob
             ->whereHas('detail', function ($q) {
                 $q->whereNotNull('release_date');
             })
-            ->whereHas('developers')
-            ->whereHas('publishers')
+            ->where(function ($q) {
+                $q->whereHas('developers')
+                    ->orWhereHas('publishers');
+            })
             ->orderBy('id')
             ->chunkById($this->chunkSize, function ($apps) use ($service) {
                 foreach ($apps as $app) {
@@ -36,7 +38,7 @@ class AggregateSteamAppsJob extends BaseAggregateJob
                     $developerNames = $app->developers()->pluck('name')->all();
                     $publisherNames = $app->publishers()->pluck('name')->all();
 
-                    if (empty($developerNames) || empty($publisherNames)) {
+                    if (empty($developerNames) && empty($publisherNames)) {
                         continue;
                     }
 

@@ -19,7 +19,7 @@ class AggregateGogGamesJob extends BaseAggregateJob
             ->whereNotNull('title')
             ->where(function ($q) {
                 $q->whereHas('developers')
-                    ->whereHas('publishers');
+                    ->orWhereHas('publishers');
             })
             ->orderBy('id')
             ->chunkById($this->chunkSize, function ($games) use ($service) {
@@ -35,7 +35,7 @@ class AggregateGogGamesJob extends BaseAggregateJob
                     $developerNames = $g->developers()->pluck('name')->all();
                     $publisherNames = $g->publishers()->pluck('name')->all();
 
-                    if (empty($developerNames) || empty($publisherNames)) {
+                    if (empty($developerNames) && empty($publisherNames)) {
                         continue;
                     }
 

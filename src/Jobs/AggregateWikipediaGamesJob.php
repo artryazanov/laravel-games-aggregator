@@ -22,8 +22,10 @@ class AggregateWikipediaGamesJob extends BaseAggregateJob
                 $q->whereNotNull('release_year')
                     ->orWhereNotNull('release_date');
             })
-            ->whereHas('developers')
-            ->whereHas('publishers')
+            ->where(function ($q) {
+                $q->whereHas('developers')
+                    ->orWhereHas('publishers');
+            })
             ->orderBy('id')
             ->chunkById($this->chunkSize, function ($games) use ($service) {
                 foreach ($games as $wg) {
@@ -38,7 +40,7 @@ class AggregateWikipediaGamesJob extends BaseAggregateJob
                     $developerNames = $wg->developers()->pluck('clean_name')->all();
                     $publisherNames = $wg->publishers()->pluck('clean_name')->all();
 
-                    if (empty($developerNames) || empty($publisherNames)) {
+                    if (empty($developerNames) && empty($publisherNames)) {
                         continue;
                     }
 
