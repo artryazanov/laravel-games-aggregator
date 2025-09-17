@@ -120,8 +120,9 @@ class GaGame extends Model
     public static function makeSlug(string $source): string
     {
         $slug = mb_strtolower($source, 'UTF-8');
+        $slug = trim($slug);
         $slug = preg_replace('/\s+/u', '-', $slug);
-        $slug = preg_replace('/[^\p{L}\p{M}\p{N}-]+/u', '', $slug);
+        $slug = preg_replace('/[^\p{L}\p{M}\p{N}-]+/u', '-', $slug);
         $slug = preg_replace('/-+/u', '-', $slug);
 
         return trim((string) $slug, '-');
