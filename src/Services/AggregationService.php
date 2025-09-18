@@ -19,7 +19,7 @@ class AggregationService
     public function findOrCreateGaGame(string $name, ?int $releaseYear, array $developerNames, array $publisherNames): GaGame
     {
         $name = trim($name);
-        $slug = $this->makeSlug($name);
+        $slug = GaGame::makeSlug($name);
         $developerNames = $this->normalizeNames($developerNames);
         $publisherNames = $this->normalizeNames($publisherNames);
 
@@ -87,7 +87,7 @@ class AggregationService
     public function simulateDecision(string $name, ?int $releaseYear, array $developerNames, array $publisherNames): array
     {
         $name = trim($name);
-        $slug = $this->makeSlug($name);
+        $slug = GaGame::makeSlug($name);
         $devNames = $this->normalizeNames($developerNames);
         $pubNames = $this->normalizeNames($publisherNames);
 
@@ -224,15 +224,5 @@ class AggregationService
         }
 
         return array_values($out);
-    }
-
-    private function makeSlug(string $source): string
-    {
-        $slug = mb_strtolower($source, 'UTF-8');
-        $slug = preg_replace('/\s+/u', '-', $slug);
-        $slug = preg_replace('/[^\p{L}\p{M}\p{N}-]+/u', '', $slug);
-        $slug = preg_replace('/-+/u', '-', $slug);
-
-        return trim((string) $slug, '-');
     }
 }
