@@ -5,9 +5,43 @@ namespace Artryazanov\GamesAggregator\Models;
 use Artryazanov\GogScanner\Models\Game as GogGame;
 use Artryazanov\LaravelSteamAppsDb\Models\SteamApp;
 use Artryazanov\WikipediaGamesDb\Models\Game as WikipediaGame;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Support\Carbon;
 
+/**
+ * Artryazanov\GamesAggregator\Models\GaGame
+ *
+ * @property int $id
+ * @property string $name Game name
+ * @property string $slug Unique slug generated from name
+ * @property int|null $release_year Earliest release year from sources
+ * @property int|null $gog_game_id Reference to gog_games.id
+ * @property int|null $steam_app_id Reference to steam_apps.id
+ * @property int|null $second_steam_app_id Optional second Steam app link
+ * @property int|null $wikipedia_game_id Reference to wikipedia_games.id
+ * @property string|null $type Inferred type (Steam/GOG) or 'game'
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ *
+ * @property-read Collection<int, GaCompany> $developers
+ * @property-read Collection<int, GaCompany> $publishers
+ * @property-read Collection<int, GaCategory> $categories
+ * @property-read Collection<int, GaGenre> $genres
+ * @property-read GogGame|null $gogGame
+ * @property-read SteamApp|null $steamApp
+ * @property-read SteamApp|null $secondSteamApp
+ * @property-read WikipediaGame|null $wikipediaGame
+ *
+ * @method static Builder|GaGame newModelQuery()
+ * @method static Builder|GaGame newQuery()
+ * @method static Builder|GaGame query()
+ * @method static Builder|GaGame bySlug(string $slug)
+ * @method static Builder|GaGame withSources()
+ */
 class GaGame extends Model
 {
     protected $table = 'ga_games';
@@ -49,6 +83,49 @@ class GaGame extends Model
     public function genres(): BelongsToMany
     {
         return $this->belongsToMany(GaGenre::class, 'ga_game_genres', 'ga_game_id', 'ga_genre_id');
+    }
+
+    // Scopes
+    public function scopeBySlug(Builder $query, string $slug): Builder
+    {
+        return $query->where('slug', $slug);
+    }
+
+    public function scopeWithSources(Builder $query): Builder
+    {
+        return $query->with(['gogGame', 'steamApp', 'secondSteamApp', 'wikipediaGame']);
+    }
+
+    /**
+     * Get the GOG game associated with this game.
+     */
+    public function gogGame(): BelongsTo
+    {
+        return $this->belongsTo(GogGame::class, 'gog_game_id', 'id');
+    }
+
+    /**
+     * Get the primary Steam app associated with this game.
+     */
+    public function steamApp(): BelongsTo
+    {
+        return $this->belongsTo(SteamApp::class, 'steam_app_id', 'id');
+    }
+
+    /**
+     * Get the secondary Steam app associated with this game.
+     */
+    public function secondSteamApp(): BelongsTo
+    {
+        return $this->belongsTo(SteamApp::class, 'second_steam_app_id', 'id');
+    }
+
+    /**
+     * Get the Wikipedia game associated with this game.
+     */
+    public function wikipediaGame(): BelongsTo
+    {
+        return $this->belongsTo(WikipediaGame::class, 'wikipedia_game_id', 'id');
     }
 
     protected static function booted(): void
