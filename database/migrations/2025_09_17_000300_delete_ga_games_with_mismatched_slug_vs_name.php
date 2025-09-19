@@ -26,6 +26,7 @@ return new class extends Migration
                     if ($name === '' || $currentSlug === '') {
                         // If either is empty, consider it a mismatch and delete
                         $toDelete[] = (int) $row->id;
+
                         continue;
                     }
 
@@ -49,4 +50,3 @@ return new class extends Migration
         // Destructive data cleanup; nothing to restore.
     }
 };
-

@@ -24,4 +24,3 @@ class GaGenre extends Model
         'name',
     ];
 }
-

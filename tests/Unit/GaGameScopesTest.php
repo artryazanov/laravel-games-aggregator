@@ -40,4 +40,3 @@ class GaGameScopesTest extends TestCase
         $this->assertSame($app2->id, optional($loaded->secondSteamApp)->id);
     }
 }
-
