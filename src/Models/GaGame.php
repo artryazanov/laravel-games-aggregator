@@ -26,7 +26,6 @@ use Illuminate\Support\Carbon;
  * @property string|null $type Inferred type (Steam/GOG) or 'game'
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
- *
  * @property-read Collection<int, GaCompany> $developers
  * @property-read Collection<int, GaCompany> $publishers
  * @property-read Collection<int, GaCategory> $categories

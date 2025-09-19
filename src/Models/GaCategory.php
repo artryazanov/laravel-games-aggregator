@@ -24,4 +24,3 @@ class GaCategory extends Model
         'name',
     ];
 }
-
