@@ -17,6 +17,8 @@ jobs:
     environment: Testing
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
