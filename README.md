@@ -1,7 +1,7 @@
 Laravel Games Aggregator
 ========================
 
-Aggregate base game data from multiple sources (GOG, Steam, Wikipedia) into a single, normalized set of tables with the `ga_` prefix. This package scans source tables created by companion packages and links or creates unified records.
+Aggregate base game data from multiple sources (GOG, Steam, Wikipedia, PCGamingWiki) into a single, normalized set of tables with the `ga_` prefix. This package scans source tables created by companion packages and links or creates unified records.
 
 What This Package Does
 - Creates aggregator tables: games, companies, and pivots, all prefixed with `ga_`.
@@ -16,6 +16,7 @@ Requirements
   - `artryazanov/laravel-gog-scanner` (tables like `gog_games`, companies + pivots)
   - `artryazanov/laravel-steam-apps-db` (tables like `steam_apps`, `steam_app_details`, companies + pivots)
   - `artryazanov/laravel-wikipedia-games-db` (tables like `wikipedia_games`, companies + pivots)
+  - `artryazanov/laravel-pcgamingwiki-db` (tables like `pcgw_games`, `pcgw_game_wikipages`, companies + pivots)
 
 Installation
 1) Require the package (if your app is not this monorepo):
@@ -32,6 +33,7 @@ Populate source tables using their own commands (run queue workers as needed):
   - Discover via templates: php artisan games:discover-by-template
   - Or scan-all seeds:      php artisan games:scan-all
   - Or start scrape:        php artisan games:scrape-wikipedia --seed-high-value
+- PCGamingWiki: php artisan pcgamingwiki:sync-games
 
 Schema Overview (created by this package)
 - `ga_games` (id, name, release_year, gog_game_id, steam_app_id, wikipedia_game_id, timestamps)
