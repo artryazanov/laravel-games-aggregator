@@ -9,4 +9,4 @@
 	url = https://github.com/artryazanov/laravel-gog-scanner
 [submodule "packages/artryazanov/laravel-pcgamingwiki-db"]
 	path = packages/artryazanov/laravel-pcgamingwiki-db
-	url = git@github.com:artryazanov/laravel-pcgamingwiki-db.git
+	url = https://github.com/artryazanov/laravel-pcgamingwiki-db
