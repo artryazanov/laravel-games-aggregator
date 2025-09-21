@@ -3,9 +3,9 @@
 namespace Artryazanov\GamesAggregator\Console;
 
 use Artryazanov\GamesAggregator\Jobs\AggregateGogGamesJob;
+use Artryazanov\GamesAggregator\Jobs\AggregatePcgamingwikiGamesJob;
 use Artryazanov\GamesAggregator\Jobs\AggregateSteamAppsJob;
 use Artryazanov\GamesAggregator\Jobs\AggregateWikipediaGamesJob;
-use Artryazanov\GamesAggregator\Jobs\AggregatePcgamingwikiGamesJob;
 use Illuminate\Console\Command;
 
 class AggregateGamesCommand extends Command
