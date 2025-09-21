@@ -6,6 +6,7 @@ use Artryazanov\GamesAggregator\GamesAggregatorServiceProvider;
 use Artryazanov\GogScanner\GogScannerServiceProvider;
 use Artryazanov\LaravelSteamAppsDb\LaravelSteamAppsDbServiceProvider;
 use Artryazanov\WikipediaGamesDb\WikipediaGamesDbServiceProvider;
+use Artryazanov\PCGamingWiki\PCGamingWikiServiceProvider;
 use Orchestra\Testbench\TestCase as BaseTestCase;
 
 abstract class TestCase extends BaseTestCase
@@ -17,6 +18,7 @@ abstract class TestCase extends BaseTestCase
             GogScannerServiceProvider::class,
             LaravelSteamAppsDbServiceProvider::class,
             WikipediaGamesDbServiceProvider::class,
+            PCGamingWikiServiceProvider::class,
         ];
     }
 

@@ -5,11 +5,12 @@ namespace Artryazanov\GamesAggregator\Console;
 use Artryazanov\GamesAggregator\Jobs\AggregateGogGamesJob;
 use Artryazanov\GamesAggregator\Jobs\AggregateSteamAppsJob;
 use Artryazanov\GamesAggregator\Jobs\AggregateWikipediaGamesJob;
+use Artryazanov\GamesAggregator\Jobs\AggregatePcgamingwikiGamesJob;
 use Illuminate\Console\Command;
 
 class AggregateGamesCommand extends Command
 {
-    protected $signature = 'ga:aggregate {--source=* : Sources to aggregate: gog,steam,wikipedia} {--chunk=500 : Chunk size per job} {--dry-run : Simulate without DB writes} {--limit=200 : Max items to scan per source in dry-run}';
+    protected $signature = 'ga:aggregate {--source=* : Sources to aggregate: gog,steam,wikipedia,pcgamingwiki} {--chunk=500 : Chunk size per job} {--dry-run : Simulate without DB writes} {--limit=200 : Max items to scan per source in dry-run}';
 
     protected $description = 'Aggregate base game data into ga_ tables using queues and jobs.';
 
@@ -19,7 +20,7 @@ class AggregateGamesCommand extends Command
         $chunk = (int) $this->option('chunk');
 
         if (empty($sources)) {
-            $sources = ['gog', 'steam', 'wikipedia'];
+            $sources = ['gog', 'steam', 'wikipedia', 'pcgamingwiki'];
         }
 
         if ($this->option('dry-run')) {
@@ -41,6 +42,10 @@ class AggregateGamesCommand extends Command
                 case 'wikipedia':
                     AggregateWikipediaGamesJob::dispatch($chunk);
                     $this->line(' - queued: Wikipedia');
+                    break;
+                case 'pcgamingwiki':
+                    AggregatePcgamingwikiGamesJob::dispatch($chunk);
+                    $this->line(' - queued: PCGamingWiki');
                     break;
                 default:
                     $this->warn('Unknown source: '.$source);
@@ -67,6 +72,9 @@ class AggregateGamesCommand extends Command
                     break;
                 case 'wikipedia':
                     $this->simulateWikipedia($limit);
+                    break;
+                case 'pcgamingwiki':
+                    $this->simulatePcgamingwiki($limit);
                     break;
                 default:
                     $this->warn('Unknown source: '.$source);
@@ -221,6 +229,58 @@ class AggregateGamesCommand extends Command
             $devs = $wg->developers()->pluck('name')->all();
             $pubs = $wg->publishers()->pluck('name')->all();
             if (empty($devs) || empty($pubs)) {
+                continue;
+            }
+
+            $summary['total']++;
+            $sim = $service->simulateDecision($name, (int) $year, $devs, $pubs);
+            if ($sim['matched_game_id']) {
+                $summary['would_link_existing']++;
+            } else {
+                $summary['would_create_games']++;
+            }
+            foreach ($sim['missing_companies'] as $n) {
+                $summary['missing_companies'][$n] = true;
+            }
+        }
+
+        $this->table(['metric', 'value'], [
+            ['candidates', $summary['total']],
+            ['would_link_existing', $summary['would_link_existing']],
+            ['would_create_games', $summary['would_create_games']],
+            ['unique_missing_companies', count($summary['missing_companies'])],
+        ]);
+    }
+
+    private function simulatePcgamingwiki(int $limit): void
+    {
+        $this->line('PCGamingWiki: scanning candidates...');
+        $service = app(\Artryazanov\GamesAggregator\Services\AggregationService::class);
+        $q = \Artryazanov\PCGamingWiki\Models\Game::query()
+            ->whereRaw('NOT EXISTS (SELECT 1 FROM ga_games g WHERE g.pcgamingwiki_game_id = pcgw_games.id)')
+            ->whereNotNull('release_year')
+            ->whereHas('developersCompanies')
+            ->whereHas('publishersCompanies')
+            ->orderBy('id')
+            ->limit($limit);
+
+        $summary = [
+            'total' => 0,
+            'would_link_existing' => 0,
+            'would_create_games' => 0,
+            'missing_companies' => [],
+        ];
+
+        foreach ($q->cursor() as $pg) {
+            $name = trim((string) ($pg->clean_title ?? $pg->title ?? ''));
+            $year = $pg->release_year ? (int) $pg->release_year : null;
+            if ($name === '' || $year === null) {
+                continue;
+            }
+
+            $devs = $pg->developersCompanies()->pluck('name')->all();
+            $pubs = $pg->publishersCompanies()->pluck('name')->all();
+            if (empty($devs) && empty($pubs)) {
                 continue;
             }
 

@@ -5,6 +5,7 @@ namespace Artryazanov\GamesAggregator\Tests\Feature;
 use Artryazanov\GamesAggregator\Jobs\AggregateGogGamesJob;
 use Artryazanov\GamesAggregator\Jobs\AggregateSteamAppsJob;
 use Artryazanov\GamesAggregator\Jobs\AggregateWikipediaGamesJob;
+use Artryazanov\GamesAggregator\Jobs\AggregatePcgamingwikiGamesJob;
 use Artryazanov\GamesAggregator\Services\AggregationService;
 use Artryazanov\GamesAggregator\Tests\TestCase;
 use Artryazanov\GogScanner\Models\Company as GogCompany;
@@ -16,6 +17,10 @@ use Artryazanov\LaravelSteamAppsDb\Models\SteamAppPublisher;
 use Artryazanov\WikipediaGamesDb\Models\Company as WikiCompany;
 use Artryazanov\WikipediaGamesDb\Models\Game as WikipediaGame;
 use Artryazanov\WikipediaGamesDb\Models\Wikipage;
+use Artryazanov\PCGamingWiki\Models\Game as PcgwGame;
+use Artryazanov\PCGamingWiki\Models\Company as PcgwCompany;
+use Artryazanov\PCGamingWiki\Models\Mode as PcgwMode;
+use Artryazanov\PCGamingWiki\Models\Genre as PcgwGenre;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 class JobsAggregationTest extends TestCase
@@ -91,6 +96,26 @@ class JobsAggregationTest extends TestCase
         (new AggregateWikipediaGamesJob(chunkSize: 50))->handle(app(AggregationService::class));
 
         $this->assertDatabaseHas('ga_games', ['name' => 'Doom', 'release_year' => 1993, 'wikipedia_game_id' => $game->id]);
+        $this->assertDatabaseHas('ga_categories', ['name' => 'Single-player']);
+        $this->assertDatabaseHas('ga_genres', ['name' => 'Action']);
+    }
+
+    public function test_pcgamingwiki_job_creates_links_and_ga_entities(): void
+    {
+        $pg = PcgwGame::create(['title' => 'Doom', 'clean_title' => 'Doom', 'release_year' => 1993]);
+        $dev = PcgwCompany::create(['name' => 'id Software']);
+        $pub = PcgwCompany::create(['name' => 'GT Interactive']);
+        $pg->companies()->attach([$dev->id => ['role' => 'developer'], $pub->id => ['role' => 'publisher']]);
+
+        // Add a PCGW mode and genre
+        $mode = PcgwMode::create(['name' => 'Single-player']);
+        $pg->modes()->attach($mode->id);
+        $genre = PcgwGenre::create(['name' => 'Action']);
+        $pg->genres()->attach($genre->id);
+
+        (new AggregatePcgamingwikiGamesJob(chunkSize: 50))->handle(app(AggregationService::class));
+
+        $this->assertDatabaseHas('ga_games', ['name' => 'Doom', 'release_year' => 1993, 'pcgamingwiki_game_id' => $pg->id]);
         $this->assertDatabaseHas('ga_categories', ['name' => 'Single-player']);
         $this->assertDatabaseHas('ga_genres', ['name' => 'Action']);
     }

@@ -9,6 +9,7 @@ use Artryazanov\LaravelSteamAppsDb\Models\SteamApp;
 use Artryazanov\LaravelSteamAppsDb\Models\SteamAppDetail;
 use Artryazanov\WikipediaGamesDb\Models\Game as WikipediaGame;
 use Artryazanov\WikipediaGamesDb\Models\Wikipage;
+use Artryazanov\PCGamingWiki\Models\Game as PcgwGame;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 class GaGameReleaseYearUpdateTest extends TestCase
@@ -131,6 +132,25 @@ class GaGameReleaseYearUpdateTest extends TestCase
             'release_year' => 1994, // min(1998, 1994, 1996)
             'steam_app_id' => $app->id,
             'wikipedia_game_id' => $wiki->id,
+        ]);
+    }
+
+    public function test_sets_release_year_from_pcgamingwiki_on_link(): void
+    {
+        $pg = PcgwGame::create([
+            'title' => 'Some Game',
+            'clean_title' => 'Some Game',
+            'release_year' => 1990,
+        ]);
+
+        $ga = GaGame::create(['name' => 'Some Game', 'release_year' => 1996]);
+
+        $ga->update(['pcgamingwiki_game_id' => $pg->id]);
+
+        $this->assertDatabaseHas('ga_games', [
+            'id' => $ga->id,
+            'release_year' => 1990,
+            'pcgamingwiki_game_id' => $pg->id,
         ]);
     }
 }

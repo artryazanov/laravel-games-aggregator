@@ -36,7 +36,7 @@ Populate source tables using their own commands (run queue workers as needed):
 - PCGamingWiki: php artisan pcgamingwiki:sync-games
 
 Schema Overview (created by this package)
-- `ga_games` (id, name, release_year, gog_game_id, steam_app_id, wikipedia_game_id, timestamps)
+- `ga_games` (id, name, slug, type, release_year, gog_game_id, steam_app_id, second_steam_app_id, wikipedia_game_id, pcgamingwiki_game_id, timestamps)
 - `ga_companies` (id, name unique, timestamps)
 - `ga_game_developers` (pivot ga_game_id <-> ga_company_id)
 - `ga_game_publishers` (pivot ga_game_id <-> ga_company_id)

@@ -5,6 +5,7 @@ namespace Artryazanov\GamesAggregator\Models;
 use Artryazanov\GogScanner\Models\Game as GogGame;
 use Artryazanov\LaravelSteamAppsDb\Models\SteamApp;
 use Artryazanov\WikipediaGamesDb\Models\Game as WikipediaGame;
+use Artryazanov\PCGamingWiki\Models\Game as PcgwGame;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
@@ -23,6 +24,7 @@ use Illuminate\Support\Carbon;
  * @property int|null $steam_app_id Reference to steam_apps.id
  * @property int|null $second_steam_app_id Optional second Steam app link
  * @property int|null $wikipedia_game_id Reference to wikipedia_games.id
+ * @property int|null $pcgamingwiki_game_id Reference to pcgw_games.id
  * @property string|null $type Inferred type (Steam/GOG) or 'game'
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -34,6 +36,7 @@ use Illuminate\Support\Carbon;
  * @property-read SteamApp|null $steamApp
  * @property-read SteamApp|null $secondSteamApp
  * @property-read WikipediaGame|null $wikipediaGame
+ * @property-read PcgwGame|null $pcgamingwikiGame
  *
  * @method static Builder|GaGame newModelQuery()
  * @method static Builder|GaGame newQuery()
@@ -52,6 +55,7 @@ class GaGame extends Model
         'steam_app_id',
         'second_steam_app_id',
         'wikipedia_game_id',
+        'pcgamingwiki_game_id',
         'type',
     ];
 
@@ -61,6 +65,7 @@ class GaGame extends Model
         'steam_app_id' => 'integer',
         'second_steam_app_id' => 'integer',
         'wikipedia_game_id' => 'integer',
+        'pcgamingwiki_game_id' => 'integer',
         'type' => 'string',
     ];
 
@@ -92,7 +97,7 @@ class GaGame extends Model
 
     public function scopeWithSources(Builder $query): Builder
     {
-        return $query->with(['gogGame', 'steamApp', 'secondSteamApp', 'wikipediaGame']);
+        return $query->with(['gogGame', 'steamApp', 'secondSteamApp', 'wikipediaGame', 'pcgamingwikiGame']);
     }
 
     /**
@@ -125,6 +130,14 @@ class GaGame extends Model
     public function wikipediaGame(): BelongsTo
     {
         return $this->belongsTo(WikipediaGame::class, 'wikipedia_game_id', 'id');
+    }
+
+    /**
+     * Get the PCGamingWiki game associated with this game.
+     */
+    public function pcgamingwikiGame(): BelongsTo
+    {
+        return $this->belongsTo(PcgwGame::class, 'pcgamingwiki_game_id', 'id');
     }
 
     protected static function booted(): void
@@ -176,6 +189,14 @@ class GaGame extends Model
                 }
             }
 
+            // If a new PCGamingWiki link is being added/changed, take the release_year
+            if ($game->isDirty('pcgamingwiki_game_id') && ! empty($game->pcgamingwiki_game_id)) {
+                $pg = PcgwGame::find($game->pcgamingwiki_game_id);
+                if ($pg && ! is_null($pg->release_year)) {
+                    $sourceYears[] = (int) $pg->release_year;
+                }
+            }
+
             if (! empty($sourceYears)) {
                 $minSource = min($sourceYears);
                 $current = $game->release_year;
@@ -187,7 +208,7 @@ class GaGame extends Model
             }
 
             // Recompute type when any source link changes
-            if ($game->isDirty('steam_app_id') || $game->isDirty('gog_game_id') || $game->isDirty('wikipedia_game_id')) {
+            if ($game->isDirty('steam_app_id') || $game->isDirty('gog_game_id') || $game->isDirty('wikipedia_game_id') || $game->isDirty('pcgamingwiki_game_id')) {
                 $game->type = self::resolveTypeFor($game);
             }
         });
