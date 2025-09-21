@@ -3,9 +3,9 @@
 namespace Artryazanov\GamesAggregator\Tests\Feature;
 
 use Artryazanov\GamesAggregator\Jobs\AggregateGogGamesJob;
+use Artryazanov\GamesAggregator\Jobs\AggregatePcgamingwikiGamesJob;
 use Artryazanov\GamesAggregator\Jobs\AggregateSteamAppsJob;
 use Artryazanov\GamesAggregator\Jobs\AggregateWikipediaGamesJob;
-use Artryazanov\GamesAggregator\Jobs\AggregatePcgamingwikiGamesJob;
 use Artryazanov\GamesAggregator\Services\AggregationService;
 use Artryazanov\GamesAggregator\Tests\TestCase;
 use Artryazanov\GogScanner\Models\Company as GogCompany;
@@ -14,13 +14,13 @@ use Artryazanov\LaravelSteamAppsDb\Models\SteamApp;
 use Artryazanov\LaravelSteamAppsDb\Models\SteamAppDetail;
 use Artryazanov\LaravelSteamAppsDb\Models\SteamAppDeveloper;
 use Artryazanov\LaravelSteamAppsDb\Models\SteamAppPublisher;
+use Artryazanov\PCGamingWiki\Models\Company as PcgwCompany;
+use Artryazanov\PCGamingWiki\Models\Game as PcgwGame;
+use Artryazanov\PCGamingWiki\Models\Genre as PcgwGenre;
+use Artryazanov\PCGamingWiki\Models\Mode as PcgwMode;
 use Artryazanov\WikipediaGamesDb\Models\Company as WikiCompany;
 use Artryazanov\WikipediaGamesDb\Models\Game as WikipediaGame;
 use Artryazanov\WikipediaGamesDb\Models\Wikipage;
-use Artryazanov\PCGamingWiki\Models\Game as PcgwGame;
-use Artryazanov\PCGamingWiki\Models\Company as PcgwCompany;
-use Artryazanov\PCGamingWiki\Models\Mode as PcgwMode;
-use Artryazanov\PCGamingWiki\Models\Genre as PcgwGenre;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 class JobsAggregationTest extends TestCase

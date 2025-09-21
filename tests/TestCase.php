@@ -5,8 +5,8 @@ namespace Artryazanov\GamesAggregator\Tests;
 use Artryazanov\GamesAggregator\GamesAggregatorServiceProvider;
 use Artryazanov\GogScanner\GogScannerServiceProvider;
 use Artryazanov\LaravelSteamAppsDb\LaravelSteamAppsDbServiceProvider;
-use Artryazanov\WikipediaGamesDb\WikipediaGamesDbServiceProvider;
 use Artryazanov\PCGamingWiki\PCGamingWikiServiceProvider;
+use Artryazanov\WikipediaGamesDb\WikipediaGamesDbServiceProvider;
 use Orchestra\Testbench\TestCase as BaseTestCase;
 
 abstract class TestCase extends BaseTestCase

@@ -7,9 +7,9 @@ use Artryazanov\GamesAggregator\Tests\TestCase;
 use Artryazanov\GogScanner\Models\Game as GogGame;
 use Artryazanov\LaravelSteamAppsDb\Models\SteamApp;
 use Artryazanov\LaravelSteamAppsDb\Models\SteamAppDetail;
+use Artryazanov\PCGamingWiki\Models\Game as PcgwGame;
 use Artryazanov\WikipediaGamesDb\Models\Game as WikipediaGame;
 use Artryazanov\WikipediaGamesDb\Models\Wikipage;
-use Artryazanov\PCGamingWiki\Models\Game as PcgwGame;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 class GaGameReleaseYearUpdateTest extends TestCase

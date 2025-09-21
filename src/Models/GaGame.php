@@ -4,8 +4,8 @@ namespace Artryazanov\GamesAggregator\Models;
 
 use Artryazanov\GogScanner\Models\Game as GogGame;
 use Artryazanov\LaravelSteamAppsDb\Models\SteamApp;
-use Artryazanov\WikipediaGamesDb\Models\Game as WikipediaGame;
 use Artryazanov\PCGamingWiki\Models\Game as PcgwGame;
+use Artryazanov\WikipediaGamesDb\Models\Game as WikipediaGame;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
