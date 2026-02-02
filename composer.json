@@ -15,10 +15,7 @@
           "type": "path",
           "url": "packages/artryazanov/laravel-pcgamingwiki-db"
       },
-      {
-          "type": "path",
-          "url": "packages/artryazanov/laravel-steam-apps-db"
-      },
+
       {
           "type": "path",
           "url": "packages/artryazanov/laravel-wikipedia-games-db"
@@ -27,8 +24,8 @@
   "require": {
     "artryazanov/laravel-gog-scanner": "dev-main",
     "artryazanov/laravel-pcgamingwiki-db": "dev-main",
-    "artryazanov/laravel-steam-apps-db": "dev-main",
-    "artryazanov/laravel-wikipedia-games-db": "dev-main"
+    "artryazanov/laravel-wikipedia-games-db": "dev-main",
+    "artryazanov/laravel-steam-apps-db": "^1.0"
   },
   "autoload": {
     "psr-4": {
