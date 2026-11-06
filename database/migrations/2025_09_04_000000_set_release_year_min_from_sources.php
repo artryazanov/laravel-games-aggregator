@@ -2,16 +2,25 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
     public function up(): void
     {
+        if (! Schema::hasTable('ga_games')) {
+            return;
+        }
+
+        $hasGog = Schema::hasTable('gog_games');
+        $hasSteamDetails = Schema::hasTable('steam_app_details');
+        $hasWikipedia = Schema::hasTable('wikipedia_games');
+
         // Process ga_games that have more than one source link set
         DB::table('ga_games')
             ->select(['id', 'release_year', 'gog_game_id', 'steam_app_id', 'wikipedia_game_id'])
             ->orderBy('id')
-            ->chunkById(500, function ($rows) {
+            ->chunkById(500, function ($rows) use ($hasGog, $hasSteamDetails, $hasWikipedia) {
                 foreach ($rows as $row) {
                     $links = 0;
                     if (! empty($row->gog_game_id)) {
@@ -30,7 +39,7 @@ return new class extends Migration
                     $years = [];
 
                     // GOG
-                    if (! empty($row->gog_game_id)) {
+                    if ($hasGog && ! empty($row->gog_game_id)) {
                         $g = DB::table('gog_games')->where('id', $row->gog_game_id)->first();
                         if ($g) {
                             $y = $this->extractYearFromGogRow($g);
@@ -41,7 +50,7 @@ return new class extends Migration
                     }
 
                     // Steam
-                    if (! empty($row->steam_app_id)) {
+                    if ($hasSteamDetails && ! empty($row->steam_app_id)) {
                         $detail = DB::table('steam_app_details')->where('steam_app_id', $row->steam_app_id)->first();
                         if ($detail && ! empty($detail->release_date)) {
                             $y = $this->extractYearFromDateString((string) $detail->release_date);
@@ -52,7 +61,7 @@ return new class extends Migration
                     }
 
                     // Wikipedia
-                    if (! empty($row->wikipedia_game_id)) {
+                    if ($hasWikipedia && ! empty($row->wikipedia_game_id)) {
                         $wg = DB::table('wikipedia_games')->where('id', $row->wikipedia_game_id)->first();
                         if ($wg) {
                             if (isset($wg->release_year) && $wg->release_year !== null) {

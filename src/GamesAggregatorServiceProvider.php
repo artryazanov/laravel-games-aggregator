@@ -1,31 +1,39 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Artryazanov\GamesAggregator;
 
+use Artryazanov\GamesAggregator\Console\AggregateGamesCommand;
 use Illuminate\Support\ServiceProvider;
 
+/**
+ * Сервис-провайдер пакета агрегации игр из внешних источников.
+ */
 class GamesAggregatorServiceProvider extends ServiceProvider
 {
+    /**
+     * Регистрирует сервисы и объединяет конфигурацию пакета.
+     */
     public function register(): void
     {
-        // Merge package config so users can override values in their app config
         $this->mergeConfigFrom(__DIR__.'/../config/games-aggregator.php', 'games-aggregator');
     }
 
+    /**
+     * Загружает миграции, публикует конфигурацию и регистрирует консольные команды.
+     */
     public function boot(): void
     {
-        // Publishable configuration
-        $this->publishes([
-            __DIR__.'/../config/games-aggregator.php' => config_path('games-aggregator.php'),
-        ], 'config');
-
-        // Load package migrations
         $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
 
-        // Register console commands
         if ($this->app->runningInConsole()) {
+            $this->publishes([
+                __DIR__.'/../config/games-aggregator.php' => config_path('games-aggregator.php'),
+            ], 'config');
+
             $this->commands([
-                \Artryazanov\GamesAggregator\Console\AggregateGamesCommand::class,
+                AggregateGamesCommand::class,
             ]);
         }
     }

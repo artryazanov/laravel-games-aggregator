@@ -31,13 +31,13 @@ return new class extends Migration
                 // Drop FK if exists
                 try {
                     $t->dropForeign(['second_steam_app_id']);
-                } catch (\Throwable $e) {
+                } catch (Throwable $e) {
                     // ignore if constraint name mismatch or absent
                 }
                 // Drop unique index if exists (Laravel default name)
                 try {
                     $t->dropUnique('ga_games_second_steam_app_id_unique');
-                } catch (\Throwable $e) {
+                } catch (Throwable $e) {
                     // ignore
                 }
                 $t->dropColumn('second_steam_app_id');

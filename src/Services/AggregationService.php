@@ -1,43 +1,67 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Artryazanov\GamesAggregator\Services;
 
 use Artryazanov\GamesAggregator\Models\GaCategory;
 use Artryazanov\GamesAggregator\Models\GaCompany;
 use Artryazanov\GamesAggregator\Models\GaGame;
 use Artryazanov\GamesAggregator\Models\GaGenre;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\QueryException;
+use InvalidArgumentException;
 
+/**
+ * Сервис агрегации и сопоставления игр, компаний, категорий и жанров из внешних источников.
+ */
 class AggregationService
 {
     /**
-     * Find a GA game candidate by name and soft matching rules, or create a new one.
-     * Matching rule: same name AND (same release_year OR overlapping developer OR overlapping publisher).
+     * Находит существующую агрегированную игру по slug и мягким правилам совпадения или создаёт новую.
+     * Правило совпадения: одинаковый slug И (совпадение года релиза ИЛИ пересечение по разработчикам ИЛИ пересечение по издателям).
      *
-     * @param  array<int,string>  $developerNames
-     * @param  array<int,string>  $publisherNames
+     * @param  string  $name  Название игры
+     * @param  int|null  $releaseYear  Год выхода игры
+     * @param  array<int, string|null>  $developerNames  Список названий компаний-разработчиков
+     * @param  array<int, string|null>  $publisherNames  Список названий компаний-издателей
+     * @return GaGame Найденная или созданная модель агрегированной игры
+     *
+     * @throws InvalidArgumentException Если название игры не образует валидный непустой slug
      */
     public function findOrCreateGaGame(string $name, ?int $releaseYear, array $developerNames, array $publisherNames): GaGame
     {
         $name = trim($name);
         $slug = GaGame::makeSlug($name);
+        if ($slug === '') {
+            throw new InvalidArgumentException('Game name must produce a non-empty slug.');
+        }
+
         $developerNames = $this->normalizeNames($developerNames);
         $publisherNames = $this->normalizeNames($publisherNames);
 
-        // Try to find matching game(s) by exact slug first
-        $candidates = GaGame::query()->where('slug', $slug)->get();
+        // Загружаем кандидатов по точному slug вместе с ID разработчиков и издателей без N+1 запросов
+        $candidates = GaGame::query()
+            ->with(['developers:id', 'publishers:id'])
+            ->where('slug', $slug)
+            ->get();
 
-        // Ensure GA companies exist for provided names (we return IDs for later linking)
+        // Гарантируем наличие компаний в справочнике и получаем их идентификаторы
         $devCompanyIds = $this->ensureCompanies($developerNames);
         $pubCompanyIds = $this->ensureCompanies($publisherNames);
 
         $matched = null;
         $bestOverlap = -1;
         foreach ($candidates as $candidate) {
-            $overlapDevs = $candidate->developers()->whereIn('ga_companies.id', $devCompanyIds)->count();
-            $overlapPubs = $candidate->publishers()->whereIn('ga_companies.id', $pubCompanyIds)->count();
+            $overlapDevs = empty($devCompanyIds)
+                ? 0
+                : $candidate->developers->pluck('id')->intersect($devCompanyIds)->count();
+            $overlapPubs = empty($pubCompanyIds)
+                ? 0
+                : $candidate->publishers->pluck('id')->intersect($pubCompanyIds)->count();
 
             $releaseMatch = ($releaseYear !== null && $candidate->release_year !== null && (int) $candidate->release_year === (int) $releaseYear);
-            $overlapScore = ($releaseMatch ? 2 : 0) + $overlapDevs + $overlapPubs; // prioritize year match
+            $overlapScore = ($releaseMatch ? 2 : 0) + $overlapDevs + $overlapPubs;
 
             if ($releaseMatch || $overlapDevs > 0 || $overlapPubs > 0) {
                 if ($overlapScore > $bestOverlap) {
@@ -53,13 +77,12 @@ class AggregationService
                 'release_year' => $releaseYear,
             ]);
         } else {
-            // Optionally backfill release_year if empty and we have one
-            if ($matched->release_year === null && $releaseYear !== null) {
+            // Обновляем год релиза, если он не был задан или новый год раньше существующего
+            if ($releaseYear !== null && ($matched->release_year === null || $releaseYear < (int) $matched->release_year)) {
                 $matched->update(['release_year' => $releaseYear]);
             }
         }
 
-        // Attach devs/pubs (ignore duplicates via unique constraints at DB level)
         if (! empty($devCompanyIds)) {
             $matched->developers()->syncWithoutDetaching($devCompanyIds);
         }
@@ -71,18 +94,21 @@ class AggregationService
     }
 
     /**
-     * Simulate the decision of matching/creating without writing to DB.
-     * Returns data about potential match, overlap and which companies would be created.
+     * Симулирует решение о сопоставлении или создании игры без записи в базу данных (для режима dry-run).
      *
+     * @param  string  $name  Название игры
+     * @param  int|null  $releaseYear  Год выхода игры
+     * @param  array<int, string|null>  $developerNames  Список названий компаний-разработчиков
+     * @param  array<int, string|null>  $publisherNames  Список названий компаний-издателей
      * @return array{
      *   matched_game_id: int|null,
      *   release_year_match: bool,
      *   overlap_devs: int,
      *   overlap_pubs: int,
      *   would_create_game: bool,
-     *   missing_companies: string[],
-     *   existing_company_ids: int[]
-     * }
+     *   missing_companies: array<int, string>,
+     *   existing_company_ids: array<int, int>
+     * } Результат симуляции сопоставления
      */
     public function simulateDecision(string $name, ?int $releaseYear, array $developerNames, array $publisherNames): array
     {
@@ -90,51 +116,79 @@ class AggregationService
         $slug = GaGame::makeSlug($name);
         $devNames = $this->normalizeNames($developerNames);
         $pubNames = $this->normalizeNames($publisherNames);
+        $allNames = array_values(array_unique(array_merge($devNames, $pubNames)));
 
-        $existingByName = GaCompany::query()->whereIn('name', array_values(array_unique(array_merge($devNames, $pubNames))))->get(['id', 'name']);
-        $existingMap = [];
-        foreach ($existingByName as $c) {
-            $existingMap[$c->name] = $c->id;
+        $existingExactMap = [];
+        $existingLowerMap = [];
+        if (! empty($allNames)) {
+            $existingByName = GaCompany::query()->whereIn('name', $allNames)->get(['id', 'name']);
+            foreach ($existingByName as $c) {
+                $existingExactMap[$c->name] = (int) $c->id;
+                $existingLowerMap[mb_strtolower($c->name, 'UTF-8')] = (int) $c->id;
+            }
         }
+
+        $resolveCompanyId = static function (string $companyName) use ($existingExactMap, $existingLowerMap): ?int {
+            if (isset($existingExactMap[$companyName])) {
+                return $existingExactMap[$companyName];
+            }
+
+            $lower = mb_strtolower($companyName, 'UTF-8');
+
+            return $existingLowerMap[$lower] ?? null;
+        };
 
         $devIds = [];
         foreach ($devNames as $n) {
-            if (isset($existingMap[$n])) {
-                $devIds[] = $existingMap[$n];
+            $id = $resolveCompanyId($n);
+            if ($id !== null) {
+                $devIds[] = $id;
             }
         }
         $pubIds = [];
         foreach ($pubNames as $n) {
-            if (isset($existingMap[$n])) {
-                $pubIds[] = $existingMap[$n];
+            $id = $resolveCompanyId($n);
+            if ($id !== null) {
+                $pubIds[] = $id;
             }
         }
 
-        $candidates = GaGame::query()->where('slug', $slug)->get();
         $best = null;
         $bestScore = -1;
         $bestReleaseMatch = false;
         $bestOverlapDevs = 0;
         $bestOverlapPubs = 0;
-        foreach ($candidates as $candidate) {
-            $overlapDevs = empty($devIds) ? 0 : $candidate->developers()->whereIn('ga_companies.id', $devIds)->count();
-            $overlapPubs = empty($pubIds) ? 0 : $candidate->publishers()->whereIn('ga_companies.id', $pubIds)->count();
-            $releaseMatch = ($releaseYear !== null && $candidate->release_year !== null && (int) $candidate->release_year === (int) $releaseYear);
-            $score = ($releaseMatch ? 2 : 0) + $overlapDevs + $overlapPubs;
-            if ($releaseMatch || $overlapDevs > 0 || $overlapPubs > 0) {
-                if ($score > $bestScore) {
-                    $best = $candidate;
-                    $bestScore = $score;
-                    $bestReleaseMatch = $releaseMatch;
-                    $bestOverlapDevs = $overlapDevs;
-                    $bestOverlapPubs = $overlapPubs;
+
+        if ($slug !== '') {
+            $candidates = GaGame::query()
+                ->with(['developers:id', 'publishers:id'])
+                ->where('slug', $slug)
+                ->get();
+
+            foreach ($candidates as $candidate) {
+                $overlapDevs = empty($devIds)
+                    ? 0
+                    : $candidate->developers->pluck('id')->intersect($devIds)->count();
+                $overlapPubs = empty($pubIds)
+                    ? 0
+                    : $candidate->publishers->pluck('id')->intersect($pubIds)->count();
+                $releaseMatch = ($releaseYear !== null && $candidate->release_year !== null && (int) $candidate->release_year === (int) $releaseYear);
+                $score = ($releaseMatch ? 2 : 0) + $overlapDevs + $overlapPubs;
+                if ($releaseMatch || $overlapDevs > 0 || $overlapPubs > 0) {
+                    if ($score > $bestScore) {
+                        $best = $candidate;
+                        $bestScore = $score;
+                        $bestReleaseMatch = $releaseMatch;
+                        $bestOverlapDevs = $overlapDevs;
+                        $bestOverlapPubs = $overlapPubs;
+                    }
                 }
             }
         }
 
         $missing = [];
-        foreach (array_merge($devNames, $pubNames) as $n) {
-            if (! isset($existingMap[$n])) {
+        foreach ($allNames as $n) {
+            if ($resolveCompanyId($n) === null) {
                 $missing[$n] = $n;
             }
         }
@@ -144,85 +198,109 @@ class AggregationService
             'release_year_match' => $bestReleaseMatch,
             'overlap_devs' => $bestOverlapDevs,
             'overlap_pubs' => $bestOverlapPubs,
-            'would_create_game' => $best === null,
+            'would_create_game' => $best === null && $slug !== '',
             'missing_companies' => array_values($missing),
             'existing_company_ids' => array_values(array_unique(array_merge($devIds, $pubIds))),
         ];
     }
 
     /**
-     * @param  array<int,string>  $names
-     * @return array<int,int> Company IDs
+     * Гарантирует существование компаний в таблице ga_companies и возвращает их идентификаторы.
+     *
+     * @param  array<int, string|null>  $names  Названия компаний
+     * @return array<int, int> Массив идентификаторов компаний
      */
     public function ensureCompanies(array $names): array
     {
-        $names = $this->normalizeNames($names);
-        $ids = [];
-        foreach ($names as $n) {
-            if ($n === '') {
-                continue;
-            }
-            $company = GaCompany::firstOrCreate(['name' => $n]);
-            $ids[] = $company->id;
-        }
-
-        return array_values(array_unique($ids));
+        return $this->ensureDictionaryRecords(GaCompany::class, $names);
     }
 
     /**
-     * @param  array<int,string>  $names
-     * @return array<int,int> Category IDs
+     * Гарантирует существование категорий в таблице ga_categories и возвращает их идентификаторы.
+     *
+     * @param  array<int, string|null>  $names  Названия категорий
+     * @return array<int, int> Массив идентификаторов категорий
      */
     public function ensureCategories(array $names): array
     {
-        $names = $this->normalizeNames($names);
-        $ids = [];
-        foreach ($names as $n) {
-            if ($n === '') {
-                continue;
-            }
-            $cat = GaCategory::firstOrCreate(['name' => $n]);
-            $ids[] = $cat->id;
-        }
-
-        return array_values(array_unique($ids));
+        return $this->ensureDictionaryRecords(GaCategory::class, $names);
     }
 
     /**
-     * @param  array<int,string>  $names
-     * @return array<int,int> Genre IDs
+     * Гарантирует существование жанров в таблице ga_genres и возвращает их идентификаторы.
+     *
+     * @param  array<int, string|null>  $names  Названия жанров
+     * @return array<int, int> Массив идентификаторов жанров
      */
     public function ensureGenres(array $names): array
     {
-        $names = $this->normalizeNames($names);
-        $ids = [];
-        foreach ($names as $n) {
-            if ($n === '') {
-                continue;
-            }
-            $g = GaGenre::firstOrCreate(['name' => $n]);
-            $ids[] = $g->id;
-        }
-
-        return array_values(array_unique($ids));
+        return $this->ensureDictionaryRecords(GaGenre::class, $names);
     }
 
     /**
-     * Normalize an array of names: trim, collapse spaces, deduplicate, drop empties.
+     * Нормализует массив названий: обрезает пробелы, схлопывает внутренние пробелы, удаляет пустые строки и дубликаты.
      *
-     * @param  array<int,string>  $names
-     * @return array<int,string>
+     * @param  array<int, mixed>  $names  Исходный массив названий
+     * @return array<int, string> Очищенный массив уникальных непустых названий
      */
-    private function normalizeNames(array $names): array
+    public function normalizeNames(array $names): array
     {
         $out = [];
         foreach ($names as $name) {
-            $norm = trim(preg_replace('/\s+/u', ' ', (string) $name));
+            if ($name === null || (! is_string($name) && ! is_numeric($name))) {
+                continue;
+            }
+            $norm = trim((string) preg_replace('/\s+/u', ' ', (string) $name));
             if ($norm !== '') {
                 $out[$norm] = $norm;
             }
         }
 
         return array_values($out);
+    }
+
+    /**
+     * Пакетно проверяет наличие записей в справочнике по полю name, создаёт недостающие и возвращает их ID.
+     *
+     * @param  class-string<Model>  $modelClass  Имя класса Eloquent-модели справочника
+     * @param  array<int, string|null>  $names  Список названий
+     * @return array<int, int> Массив уникальных идентификаторов записей
+     */
+    private function ensureDictionaryRecords(string $modelClass, array $names): array
+    {
+        $names = $this->normalizeNames($names);
+        if (empty($names)) {
+            return [];
+        }
+
+        $existing = $modelClass::query()->whereIn('name', $names)->get(['id', 'name']);
+        $exactMap = [];
+        foreach ($existing as $row) {
+            $exactMap[(string) $row->name] = (int) $row->id;
+        }
+
+        $ids = [];
+        foreach ($names as $n) {
+            if (isset($exactMap[$n])) {
+                $ids[] = $exactMap[$n];
+
+                continue;
+            }
+
+            try {
+                /** @var Model $record */
+                $record = $modelClass::firstOrCreate(['name' => $n]);
+                $id = (int) $record->getKey();
+            } catch (QueryException) {
+                $id = (int) $modelClass::query()->where('name', $n)->value('id');
+            }
+
+            if ($id > 0) {
+                $exactMap[$n] = $id;
+                $ids[] = $id;
+            }
+        }
+
+        return array_values(array_unique($ids));
     }
 }

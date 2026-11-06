@@ -1,56 +1,123 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Artryazanov\GamesAggregator\Jobs;
 
+use Artryazanov\GamesAggregator\Models\GaGame;
 use Artryazanov\GamesAggregator\Services\AggregationService;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Database\Query\Exception as QueryException;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
 
-abstract class BaseAggregateJob implements ShouldQueue
+/**
+ * Базовый абстрактный класс задачи очереди для агрегации игр из внешнего источника.
+ */
+abstract class BaseAggregateJob implements ShouldBeUnique, ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    /**
+     * Максимальное количество попыток выполнения задачи.
+     */
     public int $tries = 3;
 
+    /**
+     * Максимальное время выполнения задачи в секундах.
+     */
     public int $timeout = 1800;
 
+    /**
+     * Задержка перед повторной попыткой выполнения задачи в секундах.
+     */
     public int $backoff = 30;
 
-    public function __construct(public int $chunkSize = 500) {}
+    /**
+     * Время блокировки уникальности задачи в очереди в секундах.
+     */
+    public int $uniqueFor = 1800;
 
+    /**
+     * Создаёт новый экземпляр задачи агрегации.
+     *
+     * @param  int  $chunkSize  Размер пакета (чанка) при выборке записей из БД
+     */
+    public function __construct(public int $chunkSize = 500)
+    {
+        $this->chunkSize = max(1, $chunkSize);
+    }
+
+    /**
+     * Возвращает уникальный идентификатор задачи для предотвращения дублирования в очереди.
+     *
+     * @return string Уникальный ключ класса задачи
+     */
+    public function uniqueId(): string
+    {
+        return static::class;
+    }
+
+    /**
+     * Выполняет переданный колбэк внутри транзакции базы данных.
+     *
+     * @param  callable(): mixed  $callback  Замыкание с операциями записи в БД
+     */
     protected function withTransaction(callable $callback): void
     {
         DB::transaction($callback);
     }
 
-    protected function syncCategories($gaGame, AggregationService $service, array $names): void
+    /**
+     * Синхронизирует категории игры без удаления уже существующих связей.
+     *
+     * @param  GaGame  $gaGame  Агрегированная модель игры
+     * @param  AggregationService  $service  Сервис агрегации
+     * @param  array<int, string|null>  $names  Названия категорий для привязки
+     */
+    protected function syncCategories(GaGame $gaGame, AggregationService $service, array $names): void
     {
-        $names = array_values(array_unique(array_filter(array_map(fn ($v) => trim((string) $v), $names), fn ($v) => $v !== '')));
+        $names = $service->normalizeNames($names);
         if (empty($names)) {
             return;
         }
         $ids = $service->ensureCategories($names);
-        $gaGame->categories()->syncWithoutDetaching($ids);
+        if (! empty($ids)) {
+            $gaGame->categories()->syncWithoutDetaching($ids);
+        }
     }
 
-    protected function syncGenres($gaGame, AggregationService $service, array $names): void
+    /**
+     * Синхронизирует жанры игры без удаления уже существующих связей.
+     *
+     * @param  GaGame  $gaGame  Агрегированная модель игры
+     * @param  AggregationService  $service  Сервис агрегации
+     * @param  array<int, string|null>  $names  Названия жанров для привязки
+     */
+    protected function syncGenres(GaGame $gaGame, AggregationService $service, array $names): void
     {
-        $names = array_values(array_unique(array_filter(array_map(fn ($v) => trim((string) $v), $names), fn ($v) => $v !== '')));
+        $names = $service->normalizeNames($names);
         if (empty($names)) {
             return;
         }
         $ids = $service->ensureGenres($names);
-        $gaGame->genres()->syncWithoutDetaching($ids);
+        if (! empty($ids)) {
+            $gaGame->genres()->syncWithoutDetaching($ids);
+        }
     }
 
-    protected function linkIfEmpty($gaGame, array $attributes): void
+    /**
+     * Заполняет внешние ключи источников в записи GaGame только в том случае, если они ещё пусты.
+     *
+     * @param  GaGame  $gaGame  Агрегированная модель игры
+     * @param  array<string, int|null>  $attributes  Атрибуты внешних ключей для обновления
+     */
+    protected function linkIfEmpty(GaGame $gaGame, array $attributes): void
     {
-        // Only set attributes that are currently empty to avoid unnecessary writes
         $set = [];
         foreach ($attributes as $key => $value) {
             if (empty($gaGame->{$key})) {
@@ -63,8 +130,8 @@ abstract class BaseAggregateJob implements ShouldQueue
 
         try {
             $gaGame->update($set);
-        } catch (QueryException $e) {
-            // Ignore duplicates or race conditions; idempotent behavior is desired
+        } catch (QueryException) {
+            // Игнорируем конфликты уникальности при параллельной обработке воркерами для сохранения идемпотентности
         }
     }
 }

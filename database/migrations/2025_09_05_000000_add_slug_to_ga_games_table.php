@@ -34,7 +34,7 @@ return new class extends Migration
                 ->select(['id', 'name'])
                 ->whereNull('slug')
                 ->orderBy('id')
-                ->chunk(500, function ($rows) use ($slugify) {
+                ->chunkById(500, function ($rows) use ($slugify) {
                     foreach ($rows as $row) {
                         $name = (string) ($row->name ?? '');
                         if ($name === '') {

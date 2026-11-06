@@ -5,6 +5,7 @@ namespace Artryazanov\GamesAggregator\Tests\Unit;
 use Artryazanov\GamesAggregator\Models\GaGame;
 use Artryazanov\GamesAggregator\Tests\TestCase;
 use Artryazanov\GogScanner\Models\Game as GogGame;
+use Artryazanov\LaravelSteamAppsDb\Enums\SteamAppType;
 use Artryazanov\LaravelSteamAppsDb\Models\SteamApp;
 use Artryazanov\LaravelSteamAppsDb\Models\SteamAppDetail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -65,5 +66,34 @@ class GaGameTypeModelTest extends TestCase
         // Changing unrelated wikipedia link should keep precedence calculation stable
         $ga->update(['wikipedia_game_id' => null]);
         $this->assertSame('demo', $ga->type);
+    }
+
+    public function test_sets_type_from_second_steam_app_when_primary_has_no_type(): void
+    {
+        $app1 = SteamApp::create(['appid' => 8001, 'name' => 'Primary No Detail']);
+        $app2 = SteamApp::create(['appid' => 8002, 'name' => 'Secondary With Detail']);
+        SteamAppDetail::create([
+            'steam_app_id' => $app2->id,
+            'type' => 'music',
+            'name' => 'Secondary With Detail',
+        ]);
+
+        $ga = GaGame::create([
+            'name' => 'Secondary Typed Game',
+            'steam_app_id' => $app1->id,
+            'second_steam_app_id' => $app2->id,
+        ]);
+
+        $this->assertSame('music', $ga->type);
+    }
+
+    public function test_preserves_explicit_type_when_no_links_are_dirty_and_supports_backed_enum(): void
+    {
+        $ga = GaGame::create(['name' => 'Custom Typed', 'type' => 'mod']);
+        $this->assertSame('mod', $ga->type);
+
+        $ref = new \ReflectionMethod(GaGame::class, 'cleanType');
+        $ref->setAccessible(true);
+        $this->assertSame('dlc', $ref->invoke(null, SteamAppType::DLC));
     }
 }

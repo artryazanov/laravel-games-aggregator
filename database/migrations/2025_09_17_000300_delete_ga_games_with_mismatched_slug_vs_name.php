@@ -18,7 +18,7 @@ return new class extends Migration
         DB::table('ga_games')
             ->select(['id', 'name', 'slug'])
             ->orderBy('id')
-            ->chunk(500, function ($rows) use (&$toDelete) {
+            ->chunkById(500, function ($rows) use (&$toDelete) {
                 foreach ($rows as $row) {
                     $name = (string) ($row->name ?? '');
                     $currentSlug = (string) ($row->slug ?? '');
