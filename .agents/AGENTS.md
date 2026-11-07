@@ -32,13 +32,16 @@ Guidelines for automated coding agents working in `artryazanov/laravel-games-agg
   - `GaGame` automatically populates/updates `slug` (from `name`), `release_year` (minimum valid year across linked sources in range `1970..currentYear+5`), and `type` (priority: `steamApp->detail->type` → `secondSteamApp->detail->type` → `gogGame->game_type` → `'game'`, supporting `BackedEnum` such as `SteamAppType` from `laravel-steam-apps-db` v2.0) via `creating` and `saving` model events.
   - `GaCompany`, `GaCategory`, and `GaGenre` provide inverse `BelongsToMany` relations (`developedGames`, `publishedGames`, `games`).
 - **AggregationService**:
-  - Coordinates deterministic matching (`findOrCreateGaGame`) and dry-run simulation (`simulateDecision`), plus bulk dictionary creation (`ensureCompanies`, `ensureCategories`, `ensureGenres`) and name normalization (`normalizeNames`).
+  - Coordinates deterministic matching (`findOrCreateGaGame`), targeted single/collection Steam app aggregation (`aggregateSteamApp`, `aggregateSteamApps`), and dry-run simulation (`simulateDecision`), plus bulk dictionary creation (`ensureCompanies`, `ensureCategories`, `ensureGenres`) and name normalization (`normalizeNames`).
   - Matching requires the same non-empty normalized `slug` AND at least one of: matching `release_year` (`+2` score), overlapping developer (`+1` per match), or overlapping publisher (`+1` per match).
+  - `aggregateSteamApp(SteamApp $app, bool $strict = true)`:
+    - If `$app` is already linked (`steam_app_id` or `second_steam_app_id`) to a `GaGame`, updates that `GaGame` in a transaction (syncs developers, publishers, categories, and genres, updates `release_year` if earlier, and updates `type` when linked as primary `steam_app_id`).
+    - If unlinked, `strict: true` requires a release year and at least one developer/publisher, whereas `strict: false` (for on-demand targeted updates) only requires `$app->detail` to exist, matching or creating a `GaGame` and linking `steam_app_id` (or `second_steam_app_id`).
 - **Queue Jobs**:
   - Extend `BaseAggregateJob` (which implements `ShouldQueue` and `ShouldBeUnique`).
   - Eager-load required source relations (`->with(...)`) to avoid `N+1` queries and lazy-loading violations.
   - Wrap per-record multi-write sequences in `DB::transaction()` (`$this->withTransaction(...)`) and link source foreign keys idempotently via `linkIfEmpty()`.
-  - `AggregateSteamAppsJob` links to `steam_app_id` first, and falls back to `second_steam_app_id` when a second Steam app matches a `GaGame` that already has a primary `steam_app_id`.
+  - `AggregateSteamAppsJob` delegates per-record processing to `AggregationService::aggregateSteamApp($app, strict: true)` (linking to `steam_app_id` first, or `second_steam_app_id` when a second Steam app matches a `GaGame` that already has a primary `steam_app_id`).
 
 ## Database & Migrations
 - Core tables:

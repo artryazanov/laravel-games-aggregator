@@ -8,8 +8,12 @@ use Artryazanov\GamesAggregator\Models\GaCategory;
 use Artryazanov\GamesAggregator\Models\GaCompany;
 use Artryazanov\GamesAggregator\Models\GaGame;
 use Artryazanov\GamesAggregator\Models\GaGenre;
+use Artryazanov\LaravelSteamAppsDb\Models\SteamApp;
+use BackedEnum;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
 /**
@@ -91,6 +95,144 @@ class AggregationService
         }
 
         return $matched;
+    }
+
+    /**
+     * Агрегирует одно приложение Steam в запись GaGame (создаёт новую или обновляет существующую).
+     *
+     * @param  SteamApp  $app  Модель приложения Steam
+     * @param  bool  $strict  Требовать ли обязательного наличия года релиза и компаний (true для пакетных задач, false для ручного обновления)
+     * @return GaGame|null Агрегированная модель GaGame или null, если запись не прошла фильтр
+     */
+    public function aggregateSteamApp(SteamApp $app, bool $strict = true): ?GaGame
+    {
+        $app->loadMissing(['detail', 'developers', 'publishers', 'categories', 'genres']);
+
+        $releaseYear = $app->detail?->release_date?->format('Y');
+        $releaseYear = $releaseYear ? (int) $releaseYear : null;
+
+        $developerNames = $this->normalizeNames($app->developers->pluck('name')->all());
+        $publisherNames = $this->normalizeNames($app->publishers->pluck('name')->all());
+        $categoryNames = $this->normalizeNames($app->categories->pluck('description')->all());
+        $genreNames = $this->normalizeNames($app->genres->pluck('description')->all());
+
+        // Проверяем, привязано ли уже данное приложение Steam к существующей записи GaGame
+        $existingGaGame = GaGame::query()
+            ->where('steam_app_id', $app->id)
+            ->orWhere('second_steam_app_id', $app->id)
+            ->first();
+
+        if ($existingGaGame) {
+            return DB::transaction(function () use (
+                $existingGaGame,
+                $app,
+                $releaseYear,
+                $developerNames,
+                $publisherNames,
+                $categoryNames,
+                $genreNames,
+            ): GaGame {
+                $this->syncGaGameRelations($existingGaGame, $developerNames, $publisherNames, $categoryNames, $genreNames);
+
+                if ($releaseYear !== null && ($existingGaGame->release_year === null || $releaseYear < (int) $existingGaGame->release_year)) {
+                    $existingGaGame->release_year = $releaseYear;
+                }
+
+                $rawType = $app->detail?->type;
+                if ($rawType instanceof BackedEnum) {
+                    $rawType = (string) $rawType->value;
+                }
+                $cleanType = is_string($rawType) ? trim($rawType) : '';
+
+                if ($cleanType !== '' && (int) $existingGaGame->steam_app_id === (int) $app->id) {
+                    $existingGaGame->type = $cleanType;
+                }
+
+                if ($existingGaGame->isDirty()) {
+                    $existingGaGame->save();
+                }
+
+                return $existingGaGame;
+            });
+        }
+
+        $name = trim((string) $app->name);
+        $slug = GaGame::makeSlug($name);
+
+        if ($name === '' || $slug === '') {
+            return null;
+        }
+
+        if ($strict) {
+            if ($releaseYear === null || (empty($developerNames) && empty($publisherNames))) {
+                return null;
+            }
+        } elseif ($app->detail === null) {
+            return null;
+        }
+
+        return DB::transaction(function () use (
+            $app,
+            $name,
+            $slug,
+            $releaseYear,
+            $developerNames,
+            $publisherNames,
+            $categoryNames,
+            $genreNames,
+            $strict,
+        ): GaGame {
+            if (! $strict && $releaseYear === null && empty($developerNames) && empty($publisherNames)) {
+                $gaGame = GaGame::query()
+                    ->where('slug', $slug)
+                    ->whereNull('steam_app_id')
+                    ->first() ?? $this->findOrCreateGaGame($name, null, [], []);
+            } else {
+                $gaGame = $this->findOrCreateGaGame($name, $releaseYear, $developerNames, $publisherNames);
+            }
+
+            $this->syncGaGameRelations($gaGame, [], [], $categoryNames, $genreNames);
+
+            if (empty($gaGame->steam_app_id)) {
+                $gaGame->setRelation('steamApp', $app);
+                $this->linkSteamAppIfEmpty($gaGame, 'steam_app_id', (int) $app->id);
+            } elseif (empty($gaGame->second_steam_app_id) && (int) $gaGame->steam_app_id !== (int) $app->id) {
+                $gaGame->setRelation('secondSteamApp', $app);
+                $this->linkSteamAppIfEmpty($gaGame, 'second_steam_app_id', (int) $app->id);
+            }
+
+            return $gaGame;
+        });
+    }
+
+    /**
+     * Агрегирует коллекцию или массив приложений Steam и возвращает коллекцию уникальных записей GaGame.
+     *
+     * @param  iterable<int, SteamApp>  $apps  Список моделей SteamApp для агрегации
+     * @param  bool  $strict  Требовать ли обязательного наличия года релиза и компаний
+     * @return Collection<int, GaGame> Коллекция уникальных агрегированных записей GaGame
+     */
+    public function aggregateSteamApps(iterable $apps, bool $strict = true): Collection
+    {
+        $results = new Collection;
+
+        foreach ($apps as $app) {
+            if (! $app instanceof SteamApp) {
+                continue;
+            }
+
+            $app->load(['detail', 'developers', 'publishers', 'categories', 'genres']);
+            $gaGame = $this->aggregateSteamApp($app, $strict);
+
+            if ($gaGame) {
+                $results->push($gaGame);
+            }
+        }
+
+        /** @var Collection<int, GaGame> $unique */
+        $unique = $results->unique('id')->values();
+
+        return $unique;
     }
 
     /**
@@ -302,5 +444,66 @@ class AggregationService
         }
 
         return array_values(array_unique($ids));
+    }
+
+    /**
+     * Синхронизирует связанные компании, категории и жанры агрегированной игры без удаления существующих связей.
+     *
+     * @param  GaGame  $gaGame  Агрегированная модель игры
+     * @param  array<int, string>  $developerNames  Нормализованные названия разработчиков
+     * @param  array<int, string>  $publisherNames  Нормализованные названия издателей
+     * @param  array<int, string>  $categoryNames  Нормализованные названия категорий
+     * @param  array<int, string>  $genreNames  Нормализованные названия жанров
+     */
+    private function syncGaGameRelations(
+        GaGame $gaGame,
+        array $developerNames,
+        array $publisherNames,
+        array $categoryNames,
+        array $genreNames,
+    ): void {
+        if (! empty($developerNames)) {
+            $devIds = $this->ensureCompanies($developerNames);
+            if (! empty($devIds)) {
+                $gaGame->developers()->syncWithoutDetaching($devIds);
+            }
+        }
+
+        if (! empty($publisherNames)) {
+            $pubIds = $this->ensureCompanies($publisherNames);
+            if (! empty($pubIds)) {
+                $gaGame->publishers()->syncWithoutDetaching($pubIds);
+            }
+        }
+
+        if (! empty($categoryNames)) {
+            $catIds = $this->ensureCategories($categoryNames);
+            if (! empty($catIds)) {
+                $gaGame->categories()->syncWithoutDetaching($catIds);
+            }
+        }
+
+        if (! empty($genreNames)) {
+            $genreIds = $this->ensureGenres($genreNames);
+            if (! empty($genreIds)) {
+                $gaGame->genres()->syncWithoutDetaching($genreIds);
+            }
+        }
+    }
+
+    /**
+     * Идемпотентно заполняет внешний ключ Steam у записи GaGame.
+     *
+     * @param  GaGame  $gaGame  Агрегированная модель игры
+     * @param  string  $column  Название колонки внешнего ключа (steam_app_id или second_steam_app_id)
+     * @param  int  $steamAppId  Первичный ключ записи SteamApp
+     */
+    private function linkSteamAppIfEmpty(GaGame $gaGame, string $column, int $steamAppId): void
+    {
+        try {
+            $gaGame->update([$column => $steamAppId]);
+        } catch (QueryException) {
+            // Игнорируем конфликты уникальности при параллельной обработке для сохранения идемпотентности
+        }
     }
 }

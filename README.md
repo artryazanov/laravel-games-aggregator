@@ -7,6 +7,7 @@ Aggregate and normalize video game metadata from multiple sources (**GOG**, **St
 - Creates normalized aggregator tables (`ga_games`, `ga_companies`, `ga_categories`, `ga_genres`, and pivot tables).
 - Scans source data in chunks via unique queued jobs (`ShouldBeUnique`) and links each source entry to a unified `GaGame` record.
 - Supports primary and secondary Steam app links (`steam_app_id` and `second_steam_app_id`) on a single aggregated game.
+- Supports programmatic on-demand aggregation of individual or multiple Steam apps via `AggregationService::aggregateSteamApp()` and `AggregationService::aggregateSteamApps()` (creating new `GaGame` records or updating already-linked ones).
 - Automatically derives and maintains the earliest valid `release_year` (`1970..currentYear+5`) and normalized `type` across linked sources.
 - Provides a `--dry-run` CLI mode to preview matching decisions without writing to the database.
 
@@ -129,12 +130,25 @@ php artisan queue:work
 
 ```php
 use Artryazanov\GamesAggregator\Models\GaGame;
+use Artryazanov\GamesAggregator\Services\AggregationService;
+use Artryazanov\LaravelSteamAppsDb\Actions\UpdateSteamAppsByTitleAction;
 
+// Query aggregated games
 $games = GaGame::query()
     ->gameType()
     ->searchByName('Doom')
     ->with(['developers', 'publishers', 'genres', 'categories'])
     ->get();
+
+// Targeted on-demand update of a Steam app by title and immediate aggregation into GaGame
+$matchedSteamApps = app(UpdateSteamAppsByTitleAction::class)->execute(
+    title: 'Leaf it Alone',
+    exact: true,
+    sync: true,
+    fromApi: true,
+);
+
+$gaGames = app(AggregationService::class)->aggregateSteamApps($matchedSteamApps, strict: false);
 ```
 
 ## Testing & Code Style
